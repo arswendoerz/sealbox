@@ -5,6 +5,7 @@ import { generateVaultKey, wrapVaultKey, unwrapVaultKey, generateRecoveryKey, re
 import { fromBase64 } from '../crypto/encoding.js';
 import { supabase } from '../lib/supabase.js';
 import * as db from '../lib/db.js';
+import { makeBackup, openBackup } from '../lib/backup.js';
 
 const VaultContext = createContext(null);
 export const useVault = () => useContext(VaultContext);
@@ -240,6 +241,34 @@ export function VaultProvider({ children }) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, [updateCache]);
 
+  const exportBackup = useCallback(async () => {
+    const { profile, records } = await pull(user.id);
+    return makeBackup(user.email, profile, records);
+  }, [user]);
+
+  // Adds new items and replaces older ones; never deletes. Items from another vault get fresh ids
+  // because ids are unique across all accounts.
+  const importBackup = useCallback(async (backup, secret) => {
+    if (offline) throw new Error('Impor butuh koneksi internet.');
+    const { items: incoming, sameVault } = await openBackup(backup, keyRef.current, secret);
+    const current = new Map(items.map((i) => [i.id, i]));
+    const changed = sameVault
+      ? incoming.filter((i) => !(current.get(i.id)?.updatedAt >= i.updatedAt))
+      : incoming.map((i) => ({ ...i, id: crypto.randomUUID() }));
+    const rows = await Promise.all(changed.map(async ({ id, updatedAt, ...plain }) => ({
+      id, user_id: user.id, updated_at: new Date(updatedAt).toISOString(), ...(await encryptJSON(plain, keyRef.current)),
+    })));
+    if (rows.length) {
+      const { error } = await supabase.from('vault_items').upsert(rows);
+      if (error) throw new Error(`Gagal mengimpor: ${error.message}`);
+      const ids = new Set(rows.map((r) => r.id));
+      await updateCache((rs) => [...rs.filter((r) => !ids.has(r.id)), ...rows]);
+      setItems((prev) => [...prev.filter((i) => !ids.has(i.id)), ...changed].sort(byName));
+    }
+    const added = changed.filter((i) => !current.has(i.id)).length;
+    return { added, updated: changed.length - added, skipped: incoming.length - changed.length };
+  }, [user, items, offline, updateCache]);
+
   // Pick up changes made on other devices when the tab regains focus.
   useEffect(() => {
     if (status !== 'unlocked') return;
@@ -263,6 +292,7 @@ export function VaultProvider({ children }) {
   const value = {
     status, user, items, offline, hasLegacy,
     register, login, unlock, lock, signOut, requestRecovery, completeRecovery, saveItem, deleteItem, discardLegacy,
+    exportBackup, importBackup,
   };
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;
 }

@@ -13,6 +13,7 @@ Vault disinkronkan lewat Supabase, dengan salinan terenkripsi di IndexedDB untuk
 - Tambah, edit, hapus, cari item; folder dan favorit
 - Generator password: mode acak dan mudah diingat (passphrase bahasa Indonesia)
 - Salin ke clipboard, dihapus otomatis setelah 30 detik
+- Backup terenkripsi: ekspor ke file `.json` dan impor kembali (dibuka dengan master password atau recovery key)
 
 ## Menjalankan
 
@@ -64,6 +65,6 @@ mockup/          # mockup HTML semua layar
 
 1. ✅ Offline: enkripsi, vault, generator
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
-3. Export/backup, 2FA, PWA, daftar kata diceware lengkap (7.776 kata)
+3. ✅ Export/backup; berikutnya 2FA, PWA, daftar kata diceware lengkap (7.776 kata)
 4. Kesehatan password dan generator pintar
 5. Ekstensi browser (simpan login dan autofill)
