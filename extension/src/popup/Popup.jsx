@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar } from '../../../src/components/Avatar.jsx';
+import { siteOf, itemMatches } from '../site.js';
 
 const WEB_APP = 'https://sealbox-bet.pages.dev';
 const CLIPBOARD_SECONDS = 30;
@@ -9,18 +10,6 @@ async function send(type, payload) {
   if (!r?.ok) throw new Error(r?.error ?? 'Ekstensi tidak merespons.');
   return r;
 }
-
-function hostOf(url) {
-  try {
-    const u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`);
-    return ['http:', 'https:'].includes(u.protocol) ? u.hostname.replace(/^www\./, '') : null;
-  } catch {
-    return null;
-  }
-}
-
-// Suggestions only (the user still picks and copies). Strict domain matching comes with autofill.
-const sameSite = (a, b) => a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
 
 export function Popup() {
   const [state, setState] = useState(null); // { status, email }
@@ -101,7 +90,7 @@ function Unlock({ state, onOpen }) {
 function VaultList({ onLocked }) {
   const [items, setItems] = useState(null);
   const [offline, setOffline] = useState(false);
-  const [host, setHost] = useState(null);
+  const [page, setPage] = useState(null); // siteOf(active tab)
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -109,16 +98,25 @@ function VaultList({ onLocked }) {
 
   useEffect(() => {
     send('items').then((r) => { setItems(r.items); setOffline(r.offline); }, (err) => setError(err.message));
-    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => setHost(tab?.url ? hostOf(tab.url) : null));
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => setPage(siteOf(tab?.url)));
     return () => clearTimeout(timer.current);
   }, []);
 
   const { here, rest } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const shown = (items ?? []).filter((i) => !q || [i.name, i.username, i.url].some((v) => v?.toLowerCase().includes(q)));
-    const isHere = (i) => host && i.url && hostOf(i.url) && sameSite(hostOf(i.url), host);
+    const isHere = (i) => itemMatches(i.url, page);
     return { here: shown.filter(isHere), rest: shown.filter((i) => !isHere(i)) };
-  }, [items, host, query]);
+  }, [items, page, query]);
+
+  async function fill(item) {
+    try {
+      await send('fillActiveTab', { id: item.id });
+      window.close();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function copy(text, label) {
     await navigator.clipboard.writeText(text);
@@ -133,11 +131,12 @@ function VaultList({ onLocked }) {
     onLocked();
   }
 
-  const row = (i) => (
+  const row = (i, canFill) => (
     <div key={i.id} className="item">
       <Avatar name={i.name} />
       <div style={{ minWidth: 0, overflow: 'hidden' }}>{i.name}<small>{i.username || '—'}</small></div>
       <div className="acts">
+        {canFill && <button title="Isi di halaman ini" onClick={() => fill(i)}><i className="ti ti-login-2" /></button>}
         {i.username && <button title="Salin username" onClick={() => copy(i.username, 'Username')}><i className="ti ti-user" /></button>}
         {i.password && <button title="Salin password" onClick={() => copy(i.password, 'Password')}><i className="ti ti-key" /></button>}
       </div>
@@ -155,8 +154,8 @@ function VaultList({ onLocked }) {
       {offline && <div className="note warn" style={{ margin: '0 12px 6px' }}><i className="ti ti-cloud-off" />Offline: data dari cache</div>}
       {error && <p className="err" style={{ padding: '0 14px' }}>{error}</p>}
       {items === null && !error && <p className="sub" style={{ padding: 14 }}>Memuat…</p>}
-      {here.length > 0 && (<><div className="sec">Untuk {host}</div>{here.map(row)}</>)}
-      {rest.length > 0 && (<><div className="sec">{here.length ? 'Item lain' : 'Semua item'}</div>{rest.map(row)}</>)}
+      {here.length > 0 && (<><div className="sec">Untuk {page.site}</div>{here.map((i) => row(i, true))}</>)}
+      {rest.length > 0 && (<><div className="sec">{here.length ? 'Item lain' : 'Semua item'}</div>{rest.map((i) => row(i, false))}</>)}
       {items?.length === 0 && <p className="sub" style={{ padding: 14 }}>Vault masih kosong. Tambahkan item di aplikasi web.</p>}
       {items?.length > 0 && !here.length && !rest.length && <p className="sub" style={{ padding: 14 }}>Tidak ada item yang cocok.</p>}
       {message && <div className="toast"><i className="ti ti-check" />{message}</div>}

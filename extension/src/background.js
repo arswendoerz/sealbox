@@ -5,7 +5,8 @@ import { unwrapVaultKey } from '../../src/crypto/keys.js';
 import { toBase64, fromBase64 } from '../../src/crypto/encoding.js';
 import { pull, decryptRecords } from '../../src/lib/vaultData.js';
 import { mfaPending, verifySecondFactor } from '../../src/lib/mfa.js';
-import { clearCache } from '../../src/lib/db.js';
+import { clearCache, getCache } from '../../src/lib/db.js';
+import { siteOf, itemMatches } from './site.js';
 
 const AUTO_LOCK_MINUTES = 5;
 const CLIPBOARD_SECONDS = 30;
@@ -81,6 +82,67 @@ async function items() {
   return { items: await decryptRecords(records, key), offline };
 }
 
+// Decrypted items for page requests: from the local cache, so focusing a field doesn't hit the network.
+async function cachedItems() {
+  const key = await getKey();
+  if (!key) return null;
+  const s = await session();
+  const cached = s && (await getCache(s.user.id));
+  const records = cached?.records ?? (await pull(s.user.id)).records;
+  return decryptRecords(records, key);
+}
+
+// The page a content script runs in. A frame from another site than the tab gets nothing, so a
+// page can't embed someone else's login form to have it filled.
+function pageOf(sender) {
+  const frame = siteOf(sender.url);
+  const top = siteOf(sender.tab?.url);
+  return frame && top && frame.site === top.site ? frame : null;
+}
+
+// Names and usernames only; passwords leave the background one at a time, on a click.
+async function matches(_msg, sender) {
+  const page = pageOf(sender);
+  if (!page) return { blocked: true };
+  const all = await cachedItems();
+  if (!all) return { locked: true };
+  touch();
+  return { items: all.filter((i) => itemMatches(i.url, page)).map(({ id, name, username }) => ({ id, name, username })) };
+}
+
+async function credentialFor(id, page) {
+  const item = (await cachedItems())?.find((i) => i.id === id);
+  if (!item || !itemMatches(item.url, page)) throw new Error('Item ini bukan untuk situs ini.');
+  touch();
+  return { username: item.username ?? '', password: item.password ?? '' };
+}
+
+async function fill({ id }, sender) {
+  const page = pageOf(sender);
+  if (!page) throw new Error('Isi otomatis tidak tersedia di sini.');
+  return credentialFor(id, page);
+}
+
+// From the popup: fill the active tab's top frame.
+async function fillActiveTab({ id }) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const cred = await credentialFor(id, siteOf(tab?.url));
+  const message = { type: 'sealbox:fill', ...cred };
+  try {
+    await chrome.tabs.sendMessage(tab.id, message, { frameId: 0 });
+  } catch {
+    // Tab opened before the extension was installed: inject the content script, then retry.
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    await chrome.tabs.sendMessage(tab.id, message, { frameId: 0 });
+  }
+  return {};
+}
+
+async function openPopup() {
+  await chrome.action.openPopup();
+  return {};
+}
+
 async function signOut() {
   await lock();
   await clearCache();
@@ -101,12 +163,15 @@ async function clearClipboard() {
   await chrome.offscreen.closeDocument();
 }
 
-const handlers = { state, open, items, lock, signOut, clearClipboardLater };
+// Extension pages (popup) can do everything; content scripts (sender.tab set) only these.
+const popupHandlers = { state, open, items, lock, signOut, clearClipboardLater, fillActiveTab };
+const pageHandlers = { matches, fill, openPopup };
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
-  // Only the extension's own pages (popup). Content scripts (sender.tab) get nothing in M1.
-  if (sender.id !== chrome.runtime.id || sender.tab || !handlers[msg?.type]) return false;
-  handlers[msg.type](msg).then((r) => reply({ ok: true, ...r }), (err) => reply({ ok: false, error: err.message }));
+  if (sender.id !== chrome.runtime.id) return false;
+  const handler = (sender.tab ? pageHandlers : popupHandlers)[msg?.type];
+  if (!handler) return false;
+  handler(msg, sender).then((r) => reply({ ok: true, ...r }), (err) => reply({ ok: false, error: err.message }));
   return true;
 });
 

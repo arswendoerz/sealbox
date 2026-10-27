@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Sealbox",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Password manager zero-knowledge: semua enkripsi berjalan di perangkat Anda.",
-  "minimum_chrome_version": "120",
+  "minimum_chrome_version": "127",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Sealbox",
@@ -11,5 +11,14 @@
   },
   "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
   "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["storage", "alarms", "activeTab", "offscreen"]
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": ["https://sealbox-bet.pages.dev/*"],
+      "js": ["content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "alarms", "activeTab", "offscreen", "scripting"]
 }

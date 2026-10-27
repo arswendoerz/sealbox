@@ -14,7 +14,8 @@
     "@tabler/icons-webfont": "^3.19.0",
     "idb": "^8.0.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tldts": "^7.4.19"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.2",

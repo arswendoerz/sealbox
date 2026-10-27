@@ -44,6 +44,8 @@ npm run build:ext
 
 Buka `chrome://extensions`, nyalakan **Developer mode**, klik **Load unpacked**, lalu pilih folder `extension/dist`. Setelah build ulang, klik ↻ pada kartu Sealbox. Ekstensi memakai `.env.local` yang sama dan login sendiri (email, master password, 2FA). Vault Key disimpan di `chrome.storage.session` (hanya di memori) dan dihapus setelah 5 menit tidak dipakai.
 
+Autofill: ikon Sealbox muncul di kolom login; isi hanya setelah diklik. Login ditawarkan hanya untuk situs yang sama menurut *public suffix list* (`tldts`), item https tidak ditawarkan di halaman http, dan iframe dari situs lain tidak diisi.
+
 ## Desain kriptografi
 
 ```
@@ -80,7 +82,7 @@ mockup/          # mockup HTML semua layar
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
 3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
 4. ✅ Kesehatan password dan generator pintar
-5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin); berikutnya autofill, simpan login, generator di halaman
+5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin), ✅ M2 autofill; berikutnya simpan login, generator di halaman
 
 ## Kredit
 

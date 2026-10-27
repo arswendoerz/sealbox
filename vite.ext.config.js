@@ -19,9 +19,10 @@ export default defineConfig({
         popup: `${root}/popup.html`,
         offscreen: `${root}/offscreen.html`,
         background: `${root}/src/background.js`,
+        content: `${root}/src/content.js`, // no imports, so it stays a single classic-script-safe file
       },
       output: {
-        entryFileNames: (chunk) => (chunk.name === 'background' ? 'background.js' : 'assets/[name]-[hash].js'),
+        entryFileNames: (chunk) => (['background', 'content'].includes(chunk.name) ? `${chunk.name}.js` : 'assets/[name]-[hash].js'),
       },
     },
   },
