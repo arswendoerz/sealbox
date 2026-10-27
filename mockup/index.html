@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sealbox Mockup</title>
+<link rel="icon" href="../assets/logo.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--bg:#F4F4F7;--card:#FFFFFF;--soft:#F1F0FA;--text:#1E1B4B;--muted:#6B6A80;--line:#E4E3EE;--brand:#534AB7;--brand-soft:#EEEDFE;--brand-ink:#3C3489;--seal:#EF9F27;--ok:#3B6D11;--ok-soft:#EAF3DE;--warn:#854F0B;--warn-soft:#FAEEDA;--bad:#A32D2D;--bad-soft:#FCEBEB}
+:root[data-theme=dark]{--bg:#121120;--card:#1C1B2E;--soft:#26243D;--text:#ECEBFA;--muted:#A3A1BD;--line:#33314D;--brand:#7F77DD;--brand-soft:#2E2A5C;--brand-ink:#CECBF6;--ok:#97C459;--ok-soft:#1F3310;--warn:#FAC775;--warn-soft:#3A2805;--bad:#F09595;--bad-soft:#3D1515}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5}
+header img{height:32px}
+header h1{font-size:18px;margin:0;flex:1}
+main{padding:24px;display:grid;gap:32px;max-width:1200px;margin:auto}
+section>h2{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.screens{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.auth{width:340px;padding:28px;text-align:center}
+.auth img{height:56px}
+.auth h3{margin:12px 0 4px;font-size:20px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit;margin-bottom:10px}
+label.f{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;cursor:pointer}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.full{width:100%}
+.link{color:var(--brand);font-size:13px;text-decoration:none}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:-4px 0 4px}
+.meter i{display:block;height:100%;width:75%;background:var(--ok)}
+.hint{font-size:12px;text-align:left;color:var(--muted);margin:0 0 12px}
+.note{display:flex;gap:8px;text-align:left;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:14px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.ok{background:var(--ok-soft);color:var(--ok)}
+.rkey{font-family:ui-monospace,Consolas,monospace;font-size:17px;letter-spacing:1px;padding:14px;background:var(--soft);border-radius:8px;margin-bottom:12px}
+.row2{display:flex;gap:8px;margin-bottom:12px}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;text-align:left;margin-bottom:14px}
+.check input{width:auto;margin:0}
+.app{width:100%;display:grid;grid-template-columns:200px 320px 1fr;min-height:480px;overflow:hidden}
+.side{padding:16px 10px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.side .logo{display:flex;align-items:center;gap:8px;font-weight:700;padding:0 8px 14px}
+.side .logo img{height:26px}
+.nav{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--muted);font-size:13px}
+.nav.on{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+.nav b{margin-left:auto;font-size:11px;background:var(--warn-soft);color:var(--warn);padding:1px 7px;border-radius:10px}
+.sep{height:1px;background:var(--line);margin:10px 4px}
+.list{border-right:1px solid var(--line)}
+.search{display:flex;gap:8px;padding:12px}
+.search input{margin:0}
+.item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.item.on{background:var(--soft)}
+.item small{display:block;color:var(--muted);font-size:12px}
+.av{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.r{background:var(--bad-soft);color:var(--bad)}.b{background:#E6F1FB;color:#0C447C}.g{background:var(--ok-soft);color:var(--ok)}.n{background:var(--soft);color:var(--muted)}
+.item .ti-star{margin-left:auto;color:var(--seal)}
+.detail{padding:20px}
+.dh{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.dh .av{width:46px;height:46px;font-size:18px}
+.dh h3{margin:0;font-size:18px}
+.dh .act{margin-left:auto;display:flex;gap:6px}
+.val{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px}
+.val span{flex:1}
+.val i{color:var(--muted);cursor:pointer}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:12px}
+.modal-bg{width:100%;padding:32px;background:rgba(20,18,40,.45);border-radius:14px;display:flex;justify-content:center}
+.modal{width:440px;padding:22px}
+.modal h3{margin:0 0 16px;display:flex;align-items:center}
+.modal h3 i{margin-left:auto;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gen{width:380px;padding:20px}
+.out{display:flex;align-items:center;gap:8px;padding:12px;background:var(--soft);border-radius:8px;margin-bottom:14px;font-size:16px;word-break:break-all}
+.out span{flex:1}
+.opt{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin:6px 0 14px}
+.opt input{width:auto;margin:0 4px 0 0}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--soft);border-radius:8px;margin-bottom:14px}
+.tabs span{flex:1;text-align:center;padding:6px;border-radius:6px;font-size:13px}
+.tabs .on{background:var(--card);font-weight:600}
+.set{width:520px;padding:8px 0}
+.set .s{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line)}
+.set .s:last-child{border:0}
+.set .s div{flex:1}
+.set .s small{display:block;color:var(--muted);font-size:12px}
+.set .s.danger{color:var(--bad)}
+.tog{width:36px;height:20px;border-radius:10px;background:var(--brand);position:relative}
+.tog:after{content:"";position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.phone{width:280px;height:560px;border:8px solid var(--text);border-radius:34px;overflow:hidden;display:flex;flex-direction:column;background:var(--card)}
+.pbar{display:flex;align-items:center;gap:8px;padding:14px;font-weight:700;border-bottom:1px solid var(--line)}
+.pbar img{height:24px}
+.pbar i{margin-left:auto;font-weight:400}
+.pbody{flex:1;overflow:hidden}
+.tabbar{display:flex;border-top:1px solid var(--line)}
+.tabbar span{flex:1;text-align:center;padding:8px 0;font-size:11px;color:var(--muted)}
+.tabbar span i{display:block;font-size:20px}
+.tabbar .on{color:var(--brand)}
+.fab{position:relative}
+.fab .btn{position:absolute;right:14px;bottom:14px;border-radius:50%;width:48px;height:48px}
+.empty{width:520px;padding:48px 32px;text-align:center}
+.empty i.big{font-size:44px;color:var(--brand)}
+.empty h3{margin:10px 0 4px}
+.toast{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--text);color:var(--card);font-size:13px}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side,.list{border:0;border-bottom:1px solid var(--line)}}
+
+/* Polish layer */
+:root{--grad:linear-gradient(135deg,#4338CA,#7C3AED);--glow:0 8px 24px -8px rgba(83,74,183,.55);--shadow:0 1px 2px rgba(30,27,75,.06),0 12px 32px -12px rgba(30,27,75,.18)}
+:root[data-theme=dark]{--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -12px rgba(0,0,0,.6)}
+body{background:radial-gradient(900px 500px at 0% 0%,rgba(124,58,237,.12),transparent 60%),radial-gradient(800px 500px at 100% 20%,rgba(239,159,39,.10),transparent 60%),var(--bg);background-attachment:fixed;transition:background .3s,color .3s}
+header{background:color-mix(in srgb,var(--card) 75%,transparent);backdrop-filter:blur(12px)}
+.hero{text-align:center;padding:24px 0 4px}
+.hero h2{font-size:34px;margin:0;letter-spacing:-1px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);margin:6px 0 0}
+section>h2{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);text-transform:none;letter-spacing:0}
+section>h2:before{content:"";width:4px;height:18px;border-radius:2px;background:var(--grad)}
+.card{box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--line) 70%,transparent);transition:transform .2s,box-shadow .2s}
+.screens>.card:hover{transform:translateY(-3px)}
+.btn{transition:transform .15s,box-shadow .15s,background .15s}
+.btn:hover{background:var(--soft)}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--grad);border:0;box-shadow:var(--glow)}
+.btn.pri:hover{background:var(--grad);transform:translateY(-1px);box-shadow:0 12px 28px -8px rgba(83,74,183,.7)}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.auth{position:relative;overflow:hidden;padding-top:36px}
+.auth:before{content:"";position:absolute;inset:0 0 auto;height:110px;background:var(--grad);opacity:.12;mask:linear-gradient(#000,transparent)}
+.auth>*{position:relative}
+.auth>img,.auth>i:first-child{filter:drop-shadow(0 10px 16px rgba(83,74,183,.35))}
+.meter i{background:linear-gradient(90deg,#EF9F27,#639922)}
+.rkey{border:1.5px dashed var(--brand);background:var(--brand-soft);color:var(--brand-ink)}
+.side{background:linear-gradient(180deg,var(--soft),transparent)}
+.nav{transition:background .15s,color .15s;cursor:pointer}
+.nav:hover{background:var(--soft);color:var(--text)}
+.nav.on{background:var(--grad);color:#fff;box-shadow:var(--glow)}
+.item{transition:background .15s;cursor:pointer}
+.item:hover{background:var(--soft)}
+.item.on{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
+.av{box-shadow:inset 0 0 0 1px rgba(0,0,0,.04)}
+.detail .dh .av{width:52px;height:52px;border-radius:14px}
+.val{background:var(--soft);border-color:transparent;transition:border-color .15s}
+.val:hover{border-color:var(--brand)}
+.val i:hover{color:var(--brand)}
+.out{background:var(--text);color:var(--card);font-size:17px}
+.out i{color:var(--card);opacity:.7}
+.tabs .on{box-shadow:0 1px 3px rgba(0,0,0,.12);color:var(--brand)}
+.modal-bg{background:radial-gradient(circle at 30% 20%,rgba(124,58,237,.35),rgba(20,18,40,.55))}
+.tog{background:var(--grad)}
+.empty i.big{display:inline-flex;width:84px;height:84px;align-items:center;justify-content:center;border-radius:24px;background:var(--brand-soft)}
+.toast{box-shadow:var(--shadow)}
+.phone{position:relative;border-color:#1E1B4B;box-shadow:var(--shadow),0 30px 60px -20px rgba(83,74,183,.4)}
+.phone:before{content:"";position:absolute;top:6px;left:50%;transform:translateX(-50%);width:80px;height:18px;border-radius:10px;background:#1E1B4B;z-index:2}
+.pbar{padding-top:30px}
+.fab .btn{box-shadow:var(--glow)}
+.tabbar .on i{background:var(--brand-soft);border-radius:12px;padding:2px 0}
+
+/* Extension */
+.browser{width:100%;overflow:hidden}
+.bbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--soft);border-bottom:1px solid var(--line)}
+.dots{display:flex;gap:6px}.dots i{width:11px;height:11px;border-radius:50%;background:var(--line)}
+.addr{flex:1;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:16px;background:var(--card);font-size:13px;color:var(--muted)}
+.ext{position:relative;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:var(--brand-soft)}
+.ext img{height:18px}
+.ext b{position:absolute;right:-5px;top:-5px;font-size:10px;background:var(--seal);color:#412402;border-radius:8px;padding:0 5px}
+.page{position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;background:#E9EBEE}
+.fb{width:300px;padding:22px;background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.1);color:#1c1e21}
+.fb input{background:#fff;color:#1c1e21;border-color:#dddfe2}
+.fb .go{width:100%;padding:10px;border:0;border-radius:6px;background:#1877F2;color:#fff;font-weight:700}
+.savebar{position:absolute;top:12px;right:12px;width:340px;padding:14px;border-radius:12px;background:var(--card);color:var(--text);box-shadow:var(--shadow),0 0 0 1px var(--line)}
+.savebar .t{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px}
+.savebar .t img{height:22px}
+.savebar .t i{margin-left:auto;color:var(--muted)}
+.savebar .acts{display:flex;gap:6px;justify-content:flex-end;margin-top:10px}
+.savebar .btn{padding:6px 10px;font-size:13px}
+.popup{width:360px;overflow:hidden}
+.ph{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--grad);color:#fff;font-weight:700}
+.ph img{height:24px;filter:brightness(0) invert(1)}
+.ph span{margin-left:auto;display:flex;gap:12px;font-weight:400}
+.psec{padding:8px 14px 4px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.pitem{display:flex;align-items:center;gap:10px;padding:8px 14px}
+.pitem:hover{background:var(--soft)}
+.pitem small{display:block;color:var(--muted);font-size:12px}
+.pitem .btn{margin-left:auto;padding:5px 10px;font-size:12px}
+.pfoot{display:flex;border-top:1px solid var(--line)}
+.pfoot span{flex:1;text-align:center;padding:9px 0;font-size:11px;color:var(--muted)}
+.pfoot span i{display:block;font-size:18px}
+.pfoot .on{color:var(--brand)}
+.dd{position:absolute;left:0;right:0;top:100%;margin-top:-6px;background:var(--card);color:var(--text);border-radius:10px;box-shadow:var(--shadow),0 0 0 1px var(--line);overflow:hidden;z-index:3;text-align:left}
+.dd .hd{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line)}
+.dd .hd img{height:14px}
+</style>
+</head>
+<body>
+<header>
+  <img src="../assets/logo-wordmark.svg" alt="Sealbox">
+  <h1></h1>
+  <button class="btn" onclick="let r=document.documentElement;r.dataset.theme=r.dataset.theme=='dark'?'':'dark'"><i class="ti ti-moon"></i> Tema</button>
+</header>
+<main>
+<div class="hero"><h2>Satu kunci untuk semua</h2><p>Password manager zero-knowledge. Semua dienkripsi di perangkat Anda.</p></div>
+
+<section>
+  <h2>1. Autentikasi</h2>
+  <div class="screens">
+    <div class="card auth">
+      <img src="../assets/logo.svg" alt="">
+      <h3>Buat akun</h3>
+      <p class="sub">Satu master password untuk semua password Anda</p>
+      <label class="f">Email</label><input placeholder="nama@email.com">
+      <label class="f">Master password</label><input type="password" value="kopi-hujan-sepeda-42">
+      <div class="meter"><i></i></div>
+      <p class="hint">Kuat. Gunakan passphrase: beberapa kata acak yang mudah diingat.</p>
+      <label class="f">Ulangi master password</label><input type="password" value="kopi-hujan-sepeda-42">
+      <div class="note warn"><i class="ti ti-alert-triangle"></i>Kami tidak bisa mereset master password Anda. Simpan baik-baik.</div>
+      <button class="btn pri full">Buat akun</button>
+      <p class="sub" style="margin:14px 0 0">Sudah punya akun? <a class="link" href="#">Masuk</a></p>
+    </div>
+
+    <div class="card auth">
+      <i class="ti ti-key" style="font-size:44px;color:var(--seal)"></i>
+      <h3>Simpan recovery key</h3>
+      <p class="sub">Satu-satunya cara membuka vault jika Anda lupa master password</p>
+      <div class="rkey">K7QF-2MZP-9XWA-LT4R<br>B8NE-VC3H-Y6UD-J5SG</div>
+      <div class="row2"><button class="btn full"><i class="ti ti-copy"></i> Salin</button><button class="btn full"><i class="ti ti-download"></i> Unduh</button><button class="btn full"><i class="ti ti-printer"></i> Cetak</button></div>
+      <label class="check"><input type="checkbox" checked> Saya sudah menyimpan recovery key di tempat aman</label>
+      <button class="btn pri full">Lanjut ke vault</button>
+    </div>
+
+    <div class="card auth">
+      <img src="../assets/logo.svg" alt="">
+      <h3>Masuk</h3>
+      <p class="sub">Selamat datang kembali</p>
+      <label class="f">Email</label><input value="arswendo@email.com">
+      <label class="f">Master password</label><input type="password" value="xxxxxxxx">
+      <button class="btn pri full">Masuk</button>
+      <p style="margin:14px 0 0"><a class="link" href="#">Lupa master password?</a></p>
+      <p class="sub" style="margin:8px 0 0">Belum punya akun? <a class="link" href="#">Daftar</a></p>
+    </div>
+
+    <div class="card auth">
+      <img src="../assets/logo.svg" alt="">
+      <h3>Vault terkunci</h3>
+      <p class="sub">arswendo@email.com</p>
+      <input type="password" placeholder="Master password">
+      <button class="btn pri full"><i class="ti ti-lock-open"></i> Buka vault</button>
+      <p style="margin:14px 0 0"><a class="link" href="#">Keluar dari akun</a></p>
+    </div>
+
+    <div class="card auth">
+      <i class="ti ti-lifebuoy" style="font-size:44px;color:var(--brand)"></i>
+      <h3>Pulihkan akses</h3>
+      <p class="sub">Masukkan recovery key, lalu buat master password baru</p>
+      <label class="f">Recovery key</label><input class="mono" placeholder="XXXX-XXXX-XXXX-XXXX-...">
+      <label class="f">Master password baru</label><input type="password">
+      <label class="f">Ulangi master password baru</label><input type="password">
+      <div class="note ok"><i class="ti ti-shield-check"></i>Semua data Anda tetap utuh.</div>
+      <button class="btn pri full">Pulihkan vault</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>2. Vault (desktop)</h2>
+  <div class="card app">
+    <aside class="side">
+      <div class="logo"><img src="../assets/logo.svg" alt="">Sealbox</div>
+      <div class="nav on"><i class="ti ti-key"></i>Semua item</div>
+      <div class="nav"><i class="ti ti-star"></i>Favorit</div>
+      <div class="nav"><i class="ti ti-shield-exclamation"></i>Kesehatan<b>3</b></div>
+      <div class="sep"></div>
+      <div class="nav"><i class="ti ti-folder"></i>Sosial</div>
+      <div class="nav"><i class="ti ti-folder"></i>Kerja</div>
+      <div class="nav"><i class="ti ti-folder"></i>Belanja</div>
+      <div class="nav"><i class="ti ti-folder-plus"></i>Folder baru</div>
+      <div class="sep"></div>
+      <div class="nav"><i class="ti ti-wand"></i>Generator</div>
+      <div class="nav"><i class="ti ti-settings"></i>Pengaturan</div>
+      <div class="nav" style="margin-top:auto"><i class="ti ti-lock"></i>Kunci vault</div>
+    </aside>
+    <div class="list">
+      <div class="search"><input placeholder="Cari item..."><button class="btn pri"><i class="ti ti-plus"></i></button></div>
+      <div class="item on"><div class="av r">G</div><div>Gmail<small>arswendo@gmail.com</small></div><i class="ti ti-star"></i></div>
+      <div class="item"><div class="av b">F</div><div>Facebook<small>arswendo</small></div></div>
+      <div class="item"><div class="av g">T</div><div>Tokopedia<small>0812xxxxxxx</small></div><i class="ti ti-star"></i></div>
+      <div class="item"><div class="av n">G</div><div>GitHub<small>arswendoerz</small></div></div>
+      <div class="item"><div class="av b">L</div><div>LinkedIn<small>arswendo@gmail.com</small></div></div>
+      <div class="item"><div class="av r">N</div><div>Netflix<small>arswendo@gmail.com</small></div></div>
+    </div>
+    <div class="detail">
+      <div class="dh"><div class="av r">G</div><div><h3>Gmail</h3><a class="link" href="#">mail.google.com</a></div>
+        <div class="act"><button class="btn"><i class="ti ti-edit"></i> Edit</button><button class="btn"><i class="ti ti-trash"></i></button></div></div>
+      <label class="f">Username</label>
+      <div class="val"><span>arswendo@gmail.com</span><i class="ti ti-copy"></i></div>
+      <label class="f">Password</label>
+      <div class="val"><span class="mono">••••••••••••••</span><i class="ti ti-eye"></i><i class="ti ti-copy"></i></div>
+      <label class="f">Kode 2FA (TOTP)</label>
+      <div class="val"><span class="mono" style="font-size:18px;letter-spacing:2px">482 913</span><small style="color:var(--muted)">18 dtk</small><i class="ti ti-copy"></i></div>
+      <label class="f">Catatan</label>
+      <div class="val"><span style="color:var(--muted)">Akun utama, recovery ke nomor HP</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <span class="pill" style="background:var(--ok-soft);color:var(--ok)"><i class="ti ti-shield-check"></i>Password kuat</span>
+        <span class="pill" style="background:var(--ok-soft);color:var(--ok)"><i class="ti ti-circle-check"></i>Tidak bocor</span>
+        <span class="pill" style="background:var(--soft);color:var(--muted)"><i class="ti ti-clock"></i>Diubah 3 bulan lalu</span>
+      </div>
+      <p style="margin-top:20px"><span class="toast"><i class="ti ti-check"></i>Password disalin, clipboard dihapus dalam 30 detik</span></p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3. Tambah / edit item, dan generator</h2>
+  <div class="screens">
+    <div class="modal-bg" style="flex:1;min-width:500px">
+      <div class="card modal">
+        <h3>Tambah item <i class="ti ti-x"></i></h3>
+        <div class="tabs"><span class="on">Login</span><span>Kartu</span><span>Catatan</span></div>
+        <label class="f">Nama</label><input placeholder="Gmail">
+        <label class="f">URL</label><input placeholder="https://mail.google.com">
+        <label class="f">Username / email</label><input>
+        <label class="f">Password</label>
+        <div style="display:flex;gap:6px"><input class="mono" value="vT9#qL2!xR7mPz@4"><button class="btn" style="margin-bottom:10px" title="Generate"><i class="ti ti-wand"></i></button></div>
+        <div class="meter"><i style="width:100%"></i></div><p class="hint">Sangat kuat</p>
+        <div class="grid2"><div><label class="f">Folder</label><select><option>Sosial</option></select></div><div><label class="f">Kode 2FA (opsional)</label><input placeholder="Secret key"></div></div>
+        <label class="f">Catatan</label><textarea rows="2"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn">Batal</button><button class="btn pri">Simpan</button></div>
+      </div>
+    </div>
+
+    <div class="card gen">
+      <h3 style="margin:0 0 14px">Generator</h3>
+      <div class="tabs"><span class="on">Password</span><span>Passphrase</span></div>
+      <div class="out mono"><span id="pw"></span><i class="ti ti-refresh" onclick="gen()" style="cursor:pointer"></i><i class="ti ti-copy"></i></div>
+      <label class="f">Panjang: <b id="lo">20</b></label>
+      <input type="range" id="len" min="8" max="64" value="20" oninput="gen()" style="padding:0">
+      <div class="opt">
+        <label><input type="checkbox" id="u" checked onchange="gen()">A-Z</label>
+        <label><input type="checkbox" id="d" checked onchange="gen()">0-9</label>
+        <label><input type="checkbox" id="s" checked onchange="gen()">!@#$</label>
+      </div>
+      <button class="btn pri full"><i class="ti ti-copy"></i> Salin password</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3b. Generator pintar</h2>
+  <div class="screens">
+    <div class="card gen" style="width:420px">
+      <h3 style="margin:0 0 14px;display:flex;align-items:center;gap:8px"><i class="ti ti-sparkles" style="color:var(--seal)"></i>Generator pintar</h3>
+      <div class="tabs" id="sgTabs"><span data-m="acak">Acak</span><span data-m="ingat" class="on">Mudah diingat</span></div>
+
+      <div id="mAcak" hidden>
+        <div class="out mono"><span id="sgRand"></span><i class="ti ti-refresh" onclick="sgGen()" style="cursor:pointer"></i><i class="ti ti-copy"></i></div>
+        <p class="hint">Disarankan untuk akun yang cukup disalin dari Sealbox. Anda tidak perlu menghafalnya.</p>
+      </div>
+
+      <div id="mIngat">
+        <div class="out mono"><span id="sgPhrase"></span><i class="ti ti-refresh" onclick="sgGen()" style="cursor:pointer"></i><i class="ti ti-copy"></i></div>
+        <div class="note ok" style="margin-bottom:12px"><i class="ti ti-bulb"></i><span id="sgMnem"></span></div>
+        <label class="f">Jumlah kata: <b id="sgWo">4</b></label>
+        <input type="range" id="sgWords" min="3" max="6" value="4" style="padding:0">
+        <label class="f" style="margin-top:6px">Profil gaya <small style="color:var(--brand)">(terdeteksi dari vault Anda)</small></label>
+        <div class="opt">
+          <label><input type="checkbox" id="sgCap" checked>Kapital di awal</label>
+          <label><input type="checkbox" id="sgNum" checked>Angka di akhir</label>
+          <label>Pemisah <select id="sgSep" style="width:64px;margin:0 0 0 4px;padding:4px"><option>-</option><option>.</option><option value="_">_</option><option value="">tanpa</option></select></label>
+        </div>
+      </div>
+
+      <label class="f">Kekuatan: <b id="sgBits"></b></label>
+      <div class="meter" style="margin:0 0 6px"><i id="sgBar"></i></div>
+      <p class="hint" id="sgTime"></p>
+      <button class="btn pri full"><i class="ti ti-check"></i> Pakai password ini</button>
+    </div>
+
+    <div style="display:grid;gap:20px;width:420px">
+      <div class="card set" style="width:auto">
+        <div class="s"><i class="ti ti-report-search" style="color:var(--brand);font-size:22px"></i><div><b>Laporan pola</b><small>Dianalisis di perangkat Anda. Tidak dikirim ke server.</small></div></div>
+        <div class="s"><span class="pill" style="background:var(--bad-soft);color:var(--bad)">Bahaya</span><div>Pola <span class="mono">NamaSitus + 2024!</span><small>6 akun: Gmail, Facebook, Tokped, +3</small></div></div>
+        <div class="s"><span class="pill" style="background:var(--warn-soft);color:var(--warn)">Sedang</span><div>Kata dasar sama: <span class="mono">arswendo</span><small>4 akun</small></div></div>
+        <div class="s"><span class="pill" style="background:var(--warn-soft);color:var(--warn)">Sedang</span><div>Mengandung tahun lahir / tahun ini<small>3 akun</small></div></div>
+        <div class="s"><i class="ti ti-arrow-right" style="color:var(--brand)"></i><div><a class="link" href="#">Ganti 13 password berisiko dengan generator</a></div></div>
+      </div>
+
+      <div class="card set" style="width:auto">
+        <div class="s"><i class="ti ti-fingerprint" style="color:var(--brand);font-size:22px"></i><div><b>Profil gaya Anda</b><small>Hanya preferensi yang disimpan, bukan isi password</small></div></div>
+        <div class="s" style="flex-wrap:wrap;gap:8px">
+          <span class="pill" style="background:var(--brand-soft);color:var(--brand-ink)"><i class="ti ti-language"></i>Kata bahasa Indonesia</span>
+          <span class="pill" style="background:var(--brand-soft);color:var(--brand-ink)"><i class="ti ti-letter-case-upper"></i>Kapital di awal</span>
+          <span class="pill" style="background:var(--brand-soft);color:var(--brand-ink)"><i class="ti ti-number"></i>Angka di akhir</span>
+          <span class="pill" style="background:var(--brand-soft);color:var(--brand-ink)"><i class="ti ti-ruler"></i>Rata-rata 12 karakter</span>
+        </div>
+        <div class="s"><div class="note warn" style="margin:0"><i class="ti ti-shield-lock"></i>Kata dari password lama, nama situs, nama Anda, dan tahun tidak pernah dipakai.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>4. Pengaturan, kesehatan password, dan empty state</h2>
+  <div class="screens">
+    <div class="card set">
+      <div class="s"><i class="ti ti-clock-pause"></i><div>Kunci otomatis<small>Setelah tidak aktif</small></div><select style="width:120px;margin:0"><option>5 menit</option></select></div>
+      <div class="s"><i class="ti ti-clipboard-x"></i><div>Hapus clipboard<small>Setelah password disalin</small></div><select style="width:120px;margin:0"><option>30 detik</option></select></div>
+      <div class="s"><i class="ti ti-moon"></i><div>Mode gelap</div><span class="tog"></span></div>
+      <div class="s"><i class="ti ti-device-mobile"></i><div>Verifikasi 2 langkah<small>Perlindungan tambahan saat login</small></div><span class="tog"></span></div>
+      <div class="s"><i class="ti ti-password"></i><div>Ganti master password</div><i class="ti ti-chevron-right"></i></div>
+      <div class="s"><i class="ti ti-key"></i><div>Buat recovery key baru</div><i class="ti ti-chevron-right"></i></div>
+      <div class="s"><i class="ti ti-file-export"></i><div>Export vault<small>File terenkripsi atau CSV</small></div><i class="ti ti-chevron-right"></i></div>
+      <div class="s"><i class="ti ti-file-import"></i><div>Import<small>Dari Chrome, Bitwarden, CSV</small></div><i class="ti ti-chevron-right"></i></div>
+      <div class="s danger"><i class="ti ti-trash"></i><div>Hapus akun</div><i class="ti ti-chevron-right"></i></div>
+    </div>
+
+    <div class="card set">
+      <div class="s"><i class="ti ti-shield-exclamation" style="color:var(--warn);font-size:22px"></i><div><b>Skor keamanan: 82/100</b><small>3 masalah perlu diperhatikan</small></div></div>
+      <div class="s"><div class="av r">F</div><div>Facebook<small>Password ditemukan di kebocoran data</small></div><button class="btn">Ganti</button></div>
+      <div class="s"><div class="av n">T</div><div>Twitter<small>Password lemah (8 karakter)</small></div><button class="btn">Ganti</button></div>
+      <div class="s"><div class="av b">L</div><div>LinkedIn<small>Dipakai juga di 2 akun lain</small></div><button class="btn">Ganti</button></div>
+    </div>
+
+    <div class="card empty">
+      <i class="ti ti-box big"></i>
+      <h3>Vault Anda masih kosong</h3>
+      <p class="sub">Tambahkan password pertama, atau import dari browser Anda.</p>
+      <div style="display:flex;gap:8px;justify-content:center"><button class="btn pri"><i class="ti ti-plus"></i> Tambah item</button><button class="btn"><i class="ti ti-file-import"></i> Import</button></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>5. Mobile</h2>
+  <div class="screens">
+    <div class="phone">
+      <div class="pbar"><img src="../assets/logo.svg" alt="">Sealbox<i class="ti ti-search"></i></div>
+      <div class="pbody fab">
+        <div class="item"><div class="av r">G</div><div>Gmail<small>arswendo@gmail.com</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+        <div class="item"><div class="av b">F</div><div>Facebook<small>arswendo</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+        <div class="item"><div class="av g">T</div><div>Tokopedia<small>0812xxxxxxx</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+        <div class="item"><div class="av n">G</div><div>GitHub<small>arswendoerz</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+        <div class="item"><div class="av b">L</div><div>LinkedIn<small>arswendo@gmail.com</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+        <button class="btn pri"><i class="ti ti-plus"></i></button>
+      </div>
+      <div class="tabbar"><span class="on"><i class="ti ti-key"></i>Vault</span><span><i class="ti ti-wand"></i>Generator</span><span><i class="ti ti-shield"></i>Kesehatan</span><span><i class="ti ti-settings"></i>Setelan</span></div>
+    </div>
+
+    <div class="phone">
+      <div class="pbar"><i class="ti ti-arrow-left" style="margin:0"></i>Gmail<i class="ti ti-edit"></i></div>
+      <div class="pbody detail">
+        <div class="dh"><div class="av r">G</div><div><h3>Gmail</h3><a class="link" href="#">mail.google.com</a></div></div>
+        <label class="f">Username</label><div class="val"><span>arswendo@gmail.com</span><i class="ti ti-copy"></i></div>
+        <label class="f">Password</label><div class="val"><span class="mono">••••••••••</span><i class="ti ti-eye"></i><i class="ti ti-copy"></i></div>
+        <label class="f">Kode 2FA</label><div class="val"><span class="mono">482 913</span><i class="ti ti-copy"></i></div>
+        <span class="pill" style="background:var(--ok-soft);color:var(--ok)"><i class="ti ti-shield-check"></i>Password kuat</span>
+      </div>
+      <div class="tabbar"><span class="on"><i class="ti ti-key"></i>Vault</span><span><i class="ti ti-wand"></i>Generator</span><span><i class="ti ti-shield"></i>Kesehatan</span><span><i class="ti ti-settings"></i>Setelan</span></div>
+    </div>
+
+    <div class="phone">
+      <div class="pbar" style="border:0"></div>
+      <div class="pbody auth" style="width:auto;padding:40px 22px">
+        <img src="../assets/logo.svg" alt="">
+        <h3>Vault terkunci</h3>
+        <p class="sub">arswendo@email.com</p>
+        <input type="password" placeholder="Master password">
+        <button class="btn pri full"><i class="ti ti-lock-open"></i> Buka vault</button>
+        <button class="btn full" style="margin-top:10px"><i class="ti ti-fingerprint"></i> Pakai sidik jari</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>6. Ekstensi browser: bar "Simpan login?"</h2>
+  <div class="card browser">
+    <div class="bbar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="addr"><i class="ti ti-lock" style="color:var(--ok)"></i>facebook.com/login</div>
+      <div class="ext"><img src="../assets/logo.svg" alt="Sealbox"><b>1</b></div>
+    </div>
+    <div class="page">
+      <div class="fb">
+        <p style="font-size:26px;font-weight:700;color:#1877F2;margin:0 0 14px;text-align:center">facebook</p>
+        <input value="arswendo@gmail.com">
+        <input type="password" value="xxxxxxxxxx">
+        <button class="go">Masuk</button>
+      </div>
+      <div class="savebar">
+        <div class="t"><img src="../assets/logo.svg" alt="">Simpan login ke Sealbox?<i class="ti ti-x"></i></div>
+        <div class="val" style="margin-bottom:6px"><i class="ti ti-world"></i><span>facebook.com</span></div>
+        <div class="val" style="margin-bottom:6px"><i class="ti ti-user"></i><span>arswendo@gmail.com</span><i class="ti ti-edit"></i></div>
+        <div class="val" style="margin-bottom:6px"><i class="ti ti-key"></i><span class="mono">••••••••••</span><i class="ti ti-eye"></i></div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--warn)"><i class="ti ti-alert-triangle"></i>Password lemah. Ganti dengan yang lebih kuat setelah disimpan?</div>
+        <div class="acts"><button class="btn">Jangan untuk situs ini</button><button class="btn">Nanti</button><button class="btn pri">Simpan</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="screens" style="margin-top:16px">
+    <div class="card savebar" style="position:static">
+      <div class="t"><img src="../assets/logo.svg" alt="">Perbarui password?<i class="ti ti-x"></i></div>
+      <p class="sub" style="margin:0">Password baru untuk <b>tokopedia.com</b> berbeda dengan yang tersimpan.</p>
+      <div class="acts"><button class="btn">Jangan</button><button class="btn pri">Perbarui</button></div>
+    </div>
+    <div class="card savebar" style="position:static">
+      <div class="t"><i class="ti ti-circle-check" style="color:var(--ok);margin:0;font-size:22px"></i>Tersimpan ke Sealbox</div>
+      <p class="sub" style="margin:0">Login facebook.com dienkripsi dan disinkronkan.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>7. Ekstensi browser: popup dan autofill</h2>
+  <div class="screens">
+    <div class="card popup">
+      <div class="ph"><img src="../assets/logo.svg" alt="">Sealbox<span><i class="ti ti-external-link"></i><i class="ti ti-lock"></i></span></div>
+      <div class="search" style="padding:10px 14px"><input placeholder="Cari di vault..."></div>
+      <div class="psec">Untuk situs ini: facebook.com</div>
+      <div class="pitem"><div class="av b">F</div><div>Facebook<small>arswendo@gmail.com</small></div><button class="btn pri">Isi</button></div>
+      <div class="pitem"><div class="av b">F</div><div>Facebook (Kerja)<small>arswendo.kerja@mail.com</small></div><button class="btn">Isi</button></div>
+      <div class="psec">Favorit</div>
+      <div class="pitem"><div class="av r">G</div><div>Gmail<small>arswendo@gmail.com</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+      <div class="pitem"><div class="av g">T</div><div>Tokopedia<small>0812xxxxxxx</small></div><i class="ti ti-copy" style="margin-left:auto;color:var(--muted)"></i></div>
+      <div class="pfoot"><span class="on"><i class="ti ti-key"></i>Vault</span><span><i class="ti ti-sparkles"></i>Generator</span><span><i class="ti ti-plus"></i>Tambah</span><span><i class="ti ti-settings"></i>Setelan</span></div>
+    </div>
+
+    <div class="card popup">
+      <div class="ph"><img src="../assets/logo.svg" alt="">Sealbox</div>
+      <div class="auth" style="width:auto;padding:30px 22px;box-shadow:none">
+        <i class="ti ti-lock" style="font-size:40px;color:var(--brand)"></i>
+        <h3>Vault terkunci</h3>
+        <p class="sub">Terkunci otomatis setelah 5 menit</p>
+        <input type="password" placeholder="Master password">
+        <button class="btn pri full"><i class="ti ti-lock-open"></i> Buka</button>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:20px">
+      <div class="card fb" style="position:relative;padding-bottom:120px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 6px">Login: github.com</p>
+        <div style="position:relative">
+          <input value="" placeholder="Username atau email" style="border-color:#1877F2;box-shadow:0 0 0 3px #E6F1FB">
+          <div class="dd">
+            <div class="hd"><img src="../assets/logo.svg" alt="">Sealbox · github.com</div>
+            <div class="pitem"><div class="av n">G</div><div>arswendoerz<small>GitHub</small></div></div>
+            <div class="pitem"><div class="av n">G</div><div>arswendo-work<small>GitHub (Kerja)</small></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card fb" style="position:relative;padding-bottom:110px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 6px">Daftar: netflix.com</p>
+        <div style="position:relative">
+          <input type="password" placeholder="Buat password" style="border-color:#1877F2;box-shadow:0 0 0 3px #E6F1FB">
+          <div class="dd">
+            <div class="hd"><img src="../assets/logo.svg" alt="">Sealbox · Generator pintar</div>
+            <div class="pitem"><i class="ti ti-sparkles" style="color:var(--seal);font-size:20px"></i><div><span class="mono">vT9#qL2!xR7mPz@4</span><small>Pakai password kuat dan simpan otomatis</small></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+function gen(){
+  const $=id=>document.getElementById(id);
+  let c='abcdefghijkmnopqrstuvwxyz';
+  if($('u').checked)c+='ABCDEFGHJKLMNPQRSTUVWXYZ';
+  if($('d').checked)c+='23456789';
+  if($('s').checked)c+='!@#$%^&*-_=+?';
+  const n=+$('len').value,a=new Uint32Array(n);
+  crypto.getRandomValues(a);
+  $('pw').textContent=Array.from(a,x=>c[x%c.length]).join('');
+  $('lo').textContent=n;
+}
+gen();
+
+// Contoh kecil; aplikasi asli memakai daftar diceware 7.776 kata Indonesia
+const WORDS='kopi hujan sepeda merah gunung awan pelangi kucing rumah jendela bintang sungai pasir ombak kapal layang bulan matahari daun pohon bunga meja kursi buku pena lampu kabut angin batu padi sawah kerbau gajah rusa elang ikan kelapa mangga durian nanas jeruk teh gula garam roti nasi sambal tempe tahu kereta pesawat payung topi sepatu jam gitar drum seruling wayang batik candi pantai pulau hutan danau'.split(' ');
+const DICE_BITS=Math.log2(7776);
+let sgMode='ingat';
+function rnd(n){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n}
+function sgGen(){
+  const $=id=>document.getElementById(id);
+  let bits;
+  if(sgMode=='acak'){
+    const c='abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_=+?';
+    $('sgRand').textContent=Array.from({length:20},()=>c[rnd(c.length)]).join('');
+    bits=20*Math.log2(c.length);
+  }else{
+    const n=+$('sgWords').value,cap=$('sgCap').checked,num=$('sgNum').checked,sep=$('sgSep').value;
+    const w=Array.from({length:n},()=>WORDS[rnd(WORDS.length)]);
+    const d=num?String(rnd(90)+10):'';
+    const shown=w.map(x=>cap?x[0].toUpperCase()+x.slice(1):x);
+    $('sgPhrase').textContent=shown.join(sep)+(num?sep+d:'');
+    $('sgMnem').textContent='Bayangkan: '+w.join(', ')+(num?', nomor '+d:'')+'.';
+    $('sgWo').textContent=n;
+    bits=n*DICE_BITS+(num?Math.log2(90):0);
+  }
+  const b=Math.round(bits),yrs=Math.pow(2,bits-1)/1e10/31536000;
+  $('sgBits').textContent=b+' bit';
+  $('sgBar').style.width=Math.min(100,b/80*100)+'%';
+  $('sgTime').textContent='Perkiraan waktu tebak offline: '+(yrs<1?'kurang dari 1 tahun':yrs<1e6?Math.round(yrs).toLocaleString('id')+' tahun':'lebih dari 1 juta tahun');
+}
+document.querySelectorAll('#sgTabs span').forEach(t=>t.onclick=()=>{
+  sgMode=t.dataset.m;
+  document.querySelectorAll('#sgTabs span').forEach(x=>x.classList.toggle('on',x==t));
+  document.getElementById('mAcak').hidden=sgMode!='acak';
+  document.getElementById('mIngat').hidden=sgMode!='ingat';
+  sgGen();
+});
+['sgWords','sgCap','sgNum','sgSep'].forEach(i=>document.getElementById(i).addEventListener('input',sgGen));
+sgGen();
+</script>
+</body>
+</html>
