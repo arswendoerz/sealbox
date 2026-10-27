@@ -8,7 +8,7 @@ import { PasswordGenerator } from '../components/PasswordGenerator.jsx';
 
 // view: 'all' | 'fav' | 'gen' | `folder:${name}`
 export function Vault() {
-  const { items, saveItem, deleteItem, lock } = useVault();
+  const { items, saveItem, deleteItem, lock, signOut, offline } = useVault();
   const { copy, message } = useClipboard(30);
   const [view, setView] = useState('all');
   const [query, setQuery] = useState('');
@@ -30,8 +30,12 @@ export function Vault() {
 
   async function remove(item) {
     if (!confirm(`Hapus "${item.name}"?`)) return;
-    await deleteItem(item.id);
-    setSelectedId(null);
+    try {
+      await deleteItem(item.id);
+      setSelectedId(null);
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
   const nav = (id, icon, label, count) => (
@@ -50,7 +54,9 @@ export function Vault() {
         {folders.map((f) => <span key={f}>{nav(`folder:${f}`, 'folder', f)}</span>)}
         {folders.length > 0 && <div className="sep" />}
         {nav('gen', 'wand', 'Generator')}
+        {offline && <div className="note warn" style={{ margin: '8px 0' }}><i className="ti ti-cloud-off" />Offline: hanya bisa dibaca</div>}
         <button className="nav" style={{ marginTop: 'auto' }} onClick={lock}><i className="ti ti-lock" />Kunci vault</button>
+        <button className="nav" onClick={signOut}><i className="ti ti-logout" />Keluar</button>
       </aside>
 
       {view !== 'gen' && (

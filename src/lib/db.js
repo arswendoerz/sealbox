@@ -1,35 +1,38 @@
 import { openDB } from 'idb';
 
-// Phase 1: everything lives in this browser. Only ciphertext and KDF params are stored.
-const dbPromise = openDB('sealbox', 1, {
-  upgrade(db) {
-    db.createObjectStore('meta');
-    db.createObjectStore('items', { keyPath: 'id' });
+// Only ciphertext and wrapped keys are stored here.
+//   meta/account + items -> Phase 1 local vault (kept only until it's migrated online)
+//   cache/<userId>       -> offline copy of the online profile and encrypted items
+const dbPromise = openDB('sealbox', 2, {
+  upgrade(db, oldVersion) {
+    if (oldVersion < 1) {
+      db.createObjectStore('meta');
+      db.createObjectStore('items', { keyPath: 'id' });
+    }
+    if (oldVersion < 2) db.createObjectStore('cache');
   },
 });
 
-export async function getAccount() {
-  return (await dbPromise).get('meta', 'account');
+export async function getLegacyVault() {
+  const db = await dbPromise;
+  const account = await db.get('meta', 'account');
+  return account ? { account, items: await db.getAll('items') } : null;
 }
 
-export async function saveAccount(account) {
-  return (await dbPromise).put('meta', account, 'account');
-}
-
-export async function getEncryptedItems() {
-  return (await dbPromise).getAll('items');
-}
-
-export async function putEncryptedItem(record) {
-  return (await dbPromise).put('items', record);
-}
-
-export async function deleteEncryptedItem(id) {
-  return (await dbPromise).delete('items', id);
-}
-
-export async function wipeAll() {
+export async function deleteLegacyVault() {
   const db = await dbPromise;
   await db.clear('items');
-  await db.clear('meta');
+  await db.delete('meta', 'account');
+}
+
+export async function getCache(userId) {
+  return (await dbPromise).get('cache', userId);
+}
+
+export async function setCache(userId, value) {
+  return (await dbPromise).put('cache', value, userId);
+}
+
+export async function clearCache() {
+  return (await dbPromise).clear('cache');
 }
