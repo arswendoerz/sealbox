@@ -6,6 +6,7 @@ import { Register } from './pages/Register.jsx';
 import { Unlock } from './pages/Unlock.jsx';
 import { Recover } from './pages/Recover.jsx';
 import { Vault } from './pages/Vault.jsx';
+import { VerifyMfa } from './pages/VerifyMfa.jsx';
 
 export default function App() {
   const { status, lock, hasLegacy } = useVault();
@@ -16,6 +17,7 @@ export default function App() {
 
   if (status === 'loading') return null;
   if (status === 'recovering') return <Recover />;
+  if (status === 'mfa') return <VerifyMfa />;
   if (status === 'signedOut') {
     const p = page ?? (hasLegacy ? 'register' : 'login');
     if (p === 'register') return <Register onLogin={() => setPage('login')} />;

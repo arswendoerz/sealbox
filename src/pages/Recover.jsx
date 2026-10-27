@@ -58,6 +58,7 @@ function SetNewPassword({ onBack }) {
   const [key, setKey] = useState('');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [mfaCode, setMfaCode] = useState(null); // null until the account turns out to use 2FA
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -67,8 +68,9 @@ function SetNewPassword({ onBack }) {
     if (pw !== pw2) return setError('Kedua master password tidak sama.');
     setBusy(true);
     try {
-      await completeRecovery(key, pw);
+      await completeRecovery(key, pw, mfaCode ?? undefined);
     } catch (err) {
+      if (err.code === 'mfa') setMfaCode('');
       setError(err.message);
       setBusy(false);
     }
@@ -88,6 +90,12 @@ function SetNewPassword({ onBack }) {
           <StrengthMeter password={pw} />
           <label className="f">Ulangi master password baru</label>
           <input type="password" required value={pw2} onChange={(e) => { setPw2(e.target.value); setError(''); }} autoComplete="new-password" />
+          {mfaCode !== null && (
+            <>
+              <label className="f">Kode 2FA atau recovery code 2FA</label>
+              <input className="mono" autoFocus required value={mfaCode} onChange={(e) => { setMfaCode(e.target.value); setError(''); }} placeholder="123456" autoComplete="one-time-code" />
+            </>
+          )}
           <div className="note ok"><i className="ti ti-shield-check" />Semua item Anda tetap utuh.</div>
           {error && <p className="err">{error}</p>}
           <button className="btn pri full" disabled={busy}>{busy ? 'Memulihkan…' : 'Pulihkan vault'}</button>

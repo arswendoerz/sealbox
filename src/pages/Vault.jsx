@@ -6,6 +6,7 @@ import { ItemForm } from '../components/ItemForm.jsx';
 import { ItemDetail } from '../components/ItemDetail.jsx';
 import { PasswordGenerator } from '../components/PasswordGenerator.jsx';
 import { BackupDialog } from '../components/BackupDialog.jsx';
+import { TwoFactorDialog } from '../components/TwoFactorDialog.jsx';
 
 // view: 'all' | 'fav' | 'gen' | `folder:${name}`
 export function Vault() {
@@ -16,6 +17,7 @@ export function Vault() {
   const [selectedId, setSelectedId] = useState(null);
   const [editing, setEditing] = useState(null); // null | {} (new) | item
   const [backingUp, setBackingUp] = useState(false);
+  const [settingMfa, setSettingMfa] = useState(false);
 
   const folders = useMemo(() => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort(), [items]);
 
@@ -58,6 +60,7 @@ export function Vault() {
         {nav('gen', 'wand', 'Generator')}
         {offline && <div className="note warn" style={{ margin: '8px 0' }}><i className="ti ti-cloud-off" />Offline: hanya bisa dibaca</div>}
         <button className="nav" style={{ marginTop: 'auto' }} onClick={() => setBackingUp(true)}><i className="ti ti-database-export" />Backup</button>
+        <button className="nav" onClick={() => setSettingMfa(true)}><i className="ti ti-shield-lock" />2FA</button>
         <button className="nav" onClick={lock}><i className="ti ti-lock" />Kunci vault</button>
         <button className="nav" onClick={signOut}><i className="ti ti-logout" />Keluar</button>
       </aside>
@@ -113,6 +116,7 @@ export function Vault() {
         />
       )}
       {backingUp && <BackupDialog onClose={() => setBackingUp(false)} />}
+      {settingMfa && <TwoFactorDialog copy={copy} onClose={() => setSettingMfa(false)} />}
       {message && <div className="toast"><i className="ti ti-check" />{message}</div>}
     </div>
   );

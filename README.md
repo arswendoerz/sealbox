@@ -14,6 +14,7 @@ Vault disinkronkan lewat Supabase, dengan salinan terenkripsi di IndexedDB untuk
 - Generator password: mode acak dan mudah diingat (passphrase dari daftar EFF 7.776 kata, atau daftar contoh bahasa Indonesia)
 - Salin ke clipboard, dihapus otomatis setelah 30 detik
 - Backup terenkripsi: ekspor ke file `.json` dan impor kembali (dibuka dengan master password atau recovery key)
+- 2FA (TOTP) dengan aplikasi authenticator, plus recovery code; ditegakkan oleh RLS di server
 - PWA: bisa di-install dan dibuka offline (vault dibaca dari cache terenkripsi), tanpa aset dari CDN pihak ketiga
 
 ## Menjalankan
@@ -26,7 +27,7 @@ npm run dev
 
 ### Menyiapkan Supabase
 
-1. Jalankan [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) di **SQL Editor**.
+1. Jalankan [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), lalu [`0002_mfa.sql`](supabase/migrations/0002_mfa.sql), di **SQL Editor**.
 2. **Authentication → URL Configuration**: isi *Site URL* dan *Redirect URLs* dengan alamat aplikasi (`http://localhost:5173` dan URL produksi).
 
 ### Deploy ke Cloudflare Pages
@@ -66,7 +67,7 @@ mockup/          # mockup HTML semua layar
 
 1. ✅ Offline: enkripsi, vault, generator
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
-3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA; berikutnya 2FA
+3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
 4. Kesehatan password dan generator pintar
 5. Ekstensi browser (simpan login dan autofill)
 

@@ -6,6 +6,7 @@ import { fromBase64 } from '../crypto/encoding.js';
 import { supabase } from '../lib/supabase.js';
 import * as db from '../lib/db.js';
 import { makeBackup, openBackup } from '../lib/backup.js';
+import { mfaPending, verifySecondFactor } from '../lib/mfa.js';
 
 const VaultContext = createContext(null);
 export const useVault = () => useContext(VaultContext);
@@ -58,7 +59,7 @@ async function migrateLegacy(userId, email, password, key) {
   return rows;
 }
 
-// status: 'loading' | 'signedOut' | 'locked' | 'unlocked' | 'recovering'
+// status: 'loading' | 'signedOut' | 'locked' | 'mfa' | 'unlocked' | 'recovering'
 export function VaultProvider({ children }) {
   const [status, setStatus] = useState('loading');
   const [user, setUser] = useState(null); // { id, email }
@@ -67,6 +68,7 @@ export function VaultProvider({ children }) {
   const [hasLegacy, setHasLegacy] = useState(null); // email of a Phase 1 local vault, if any
   const keyRef = useRef(null); // vault key: memory only, never persisted
   const authFlow = useRef(false); // true while register/login drive the state themselves
+  const mfaRef = useRef(null); // { u, masterKey, password } held while status is 'mfa'
 
   useEffect(() => {
     db.getLegacyVault().then((l) => setHasLegacy(l?.account.email ?? null));
@@ -103,6 +105,12 @@ export function VaultProvider({ children }) {
   }, []);
 
   const unlockWith = useCallback(async (u, masterKey, password) => {
+    if (await mfaPending()) {
+      mfaRef.current = { u, masterKey, password };
+      setUser(u);
+      setStatus('mfa');
+      return;
+    }
     const pulled = await pull(u.id);
     let key;
     try {
@@ -178,9 +186,27 @@ export function VaultProvider({ children }) {
   }, [unlockWith]);
 
   const unlock = useCallback(async (password) => {
-    const { masterKey } = await deriveAccountKeys(user.email, password);
+    const { masterKey, authHash } = await deriveAccountKeys(user.email, password);
+    if (await mfaPending()) {
+      // RLS hides the profile until 2FA, so the password can't be checked locally yet: ask the server.
+      authFlow.current = true;
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email: user.email, password: authHash });
+        if (error) throw new Error(/invalid/i.test(error.message) ? 'Master password salah.' : error.message);
+      } finally {
+        authFlow.current = false;
+      }
+    }
     await unlockWith(user, masterKey, password);
   }, [user, unlockWith]);
+
+  // Second step of login/unlock for accounts with 2FA.
+  const completeMfa = useCallback(async (code) => {
+    await verifySecondFactor(code);
+    const { u, masterKey, password } = mfaRef.current;
+    mfaRef.current = null;
+    await unlockWith(u, masterKey, password);
+  }, [unlockWith]);
 
   const lock = useCallback(() => {
     keyRef.current = null;
@@ -190,6 +216,7 @@ export function VaultProvider({ children }) {
 
   const signOut = useCallback(async () => {
     keyRef.current = null;
+    mfaRef.current = null;
     await db.clearCache();
     await supabase.auth.signOut();
   }, []);
@@ -200,7 +227,12 @@ export function VaultProvider({ children }) {
   }, []);
 
   // Needs a session (from the reset email link). Re-wraps the vault key under a new master password.
-  const completeRecovery = useCallback(async (recoveryKey, newPassword) => {
+  // With 2FA, the reset-link session must pass it first (mfaCode), or this throws { code: 'mfa' }.
+  const completeRecovery = useCallback(async (recoveryKey, newPassword, mfaCode) => {
+    if (await mfaPending()) {
+      if (!mfaCode) throw Object.assign(new Error('Akun ini memakai 2FA. Masukkan kodenya.'), { code: 'mfa' });
+      await verifySecondFactor(mfaCode);
+    }
     const pulled = await pull(user.id);
     if (pulled.offline) throw new Error('Pemulihan butuh koneksi internet.');
     let key;
@@ -291,7 +323,7 @@ export function VaultProvider({ children }) {
 
   const value = {
     status, user, items, offline, hasLegacy,
-    register, login, unlock, lock, signOut, requestRecovery, completeRecovery, saveItem, deleteItem, discardLegacy,
+    register, login, unlock, completeMfa, lock, signOut, requestRecovery, completeRecovery, saveItem, deleteItem, discardLegacy,
     exportBackup, importBackup,
   };
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;
