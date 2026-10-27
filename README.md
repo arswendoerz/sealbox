@@ -14,6 +14,7 @@ Vault disinkronkan lewat Supabase, dengan salinan terenkripsi di IndexedDB untuk
 - Generator password: mode acak dan mudah diingat (passphrase dari daftar EFF 7.776 kata, atau daftar contoh bahasa Indonesia)
 - Salin ke clipboard, dihapus otomatis setelah 30 detik
 - Backup terenkripsi: ekspor ke file `.json` dan impor kembali (dibuka dengan master password atau recovery key)
+- Generator pintar: aturan password per item (panjang, karakter wajib/terlarang), preset seperti PIN 6 digit, dan aturan otomatis untuk 436 situs
 - Kesehatan password: lemah, dipakai ulang, lama, dan cek kebocoran lewat Have I Been Pwned (k-anonymity: hanya 5 karakter awal hash SHA-1 yang dikirim)
 - 2FA (TOTP) dengan aplikasi authenticator, plus recovery code; ditegakkan oleh RLS di server
 - PWA: bisa di-install dan dibuka offline (vault dibaca dari cache terenkripsi), tanpa aset dari CDN pihak ketiga
@@ -69,9 +70,11 @@ mockup/          # mockup HTML semua layar
 1. ✅ Offline: enkripsi, vault, generator
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
 3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
-4. Kesehatan password dan generator pintar
+4. ✅ Kesehatan password dan generator pintar
 5. Ekstensi browser (simpan login dan autofill)
 
 ## Kredit
 
 Daftar kata passphrase bahasa Inggris: [EFF Large Wordlist](https://www.eff.org/dice) oleh Electronic Frontier Foundation, lisensi [CC BY 3.0 US](https://creativecommons.org/licenses/by/3.0/us/).
+
+Aturan password per situs: [password-manager-resources](https://github.com/apple/password-manager-resources) oleh Apple, lisensi MIT ([salinan lisensi](src/data/apple-password-rules.LICENSE.md)).

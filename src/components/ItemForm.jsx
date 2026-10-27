@@ -1,13 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StrengthMeter } from './StrengthMeter.jsx';
 import { PasswordGenerator } from './PasswordGenerator.jsx';
+import { parseRules, checkRules, describeRules, knownRulesFor, RULE_PRESETS } from '../lib/passwordRules.js';
 
-const EMPTY = { name: '', url: '', username: '', password: '', folder: '', notes: '', favorite: false };
+const EMPTY = { name: '', url: '', username: '', password: '', folder: '', notes: '', favorite: false, rules: '' };
 
 export function ItemForm({ item, folders, onSave, onClose }) {
   const [form, setForm] = useState({ ...EMPTY, ...item });
   const [showGen, setShowGen] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [showRules, setShowRules] = useState(!!item?.rules);
+  const [known, setKnown] = useState(null); // { domain, rules } from Apple's dataset for this URL
+  const rules = useMemo(() => parseRules(form.rules), [form.rules]);
+  const violations = checkRules(form.password, rules);
+
+  useEffect(() => {
+    let live = true;
+    const t = setTimeout(() => knownRulesFor(form.url).then((k) => live && setKnown(k)), 300);
+    return () => { live = false; clearTimeout(t); };
+  }, [form.url]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
@@ -42,10 +53,31 @@ export function ItemForm({ item, folders, onSave, onClose }) {
           <button type="button" className="btn icon" onClick={() => setShowGen(!showGen)} title="Generator"><i className="ti ti-wand" /></button>
         </div>
         <StrengthMeter password={form.password} />
+        {violations.length > 0 && <p className="err" style={{ marginTop: -6 }}>Tidak sesuai aturan situs: {violations.join(', ')}.</p>}
         {showGen && (
           <div className="card gen" style={{ marginBottom: 12, boxShadow: 'none' }}>
-            <PasswordGenerator onUse={(pw) => { setForm({ ...form, password: pw }); setShowGen(false); setShowPw(true); }} />
+            <PasswordGenerator key={form.rules} rules={rules} onUse={(pw) => { setForm({ ...form, password: pw }); setShowGen(false); setShowPw(true); }} />
           </div>
+        )}
+        {showRules ? (
+          <>
+            <label className="f">Aturan password situs</label>
+            <div className="opt" style={{ margin: '0 0 8px', gap: 6 }}>
+              {known && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setForm({ ...form, rules: known.rules })}><i className="ti ti-database" />Dari database: {known.domain}</button>}
+              {RULE_PRESETS.map((p) => (
+                <button key={p.label} type="button" className="btn" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setForm({ ...form, rules: p.rules })}>{p.label}</button>
+              ))}
+            </div>
+            <input className="mono" value={form.rules} onChange={set('rules')} placeholder="minlength: 8; maxlength: 16; required: digit;" style={{ fontSize: 12 }} />
+            <p className="hint" style={{ marginTop: -6 }}>
+              {rules ? describeRules(rules) || 'Tidak ada batasan yang dikenali.' : 'Kosong = tanpa aturan. Format: Apple passwordrules.'}
+            </p>
+          </>
+        ) : (
+          <p className="hint" style={{ marginTop: -4 }}>
+            <button type="button" className="link" onClick={() => setShowRules(true)}>Situs ini punya aturan password?</button>
+            {known && ` Aturan untuk ${known.domain} tersedia.`}
+          </p>
         )}
         <div className="grid2">
           <div>
