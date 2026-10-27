@@ -36,6 +36,14 @@ npm run dev
 
 Hubungkan repo ini di Cloudflare Pages: build command `npm run build`, output `dist`, lalu isi environment variable `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY`. Header keamanan ada di [`public/_headers`](public/_headers).
 
+### Ekstensi browser (Chrome, Edge, Brave)
+
+```bash
+npm run build:ext
+```
+
+Buka `chrome://extensions`, nyalakan **Developer mode**, klik **Load unpacked**, lalu pilih folder `extension/dist`. Setelah build ulang, klik ↻ pada kartu Sealbox. Ekstensi memakai `.env.local` yang sama dan login sendiri (email, master password, 2FA). Vault Key disimpan di `chrome.storage.session` (hanya di memori) dan dihapus setelah 5 menit tidak dipakai.
+
 ## Desain kriptografi
 
 ```
@@ -61,6 +69,7 @@ src/
 ├── hooks/       # auto-lock, clipboard
 ├── components/  # generator, form, detail item
 └── pages/       # Login, Register, Unlock, Recover, Vault
+extension/       # ekstensi browser (MV3): popup, background, offscreen
 supabase/        # skema database dan RLS
 mockup/          # mockup HTML semua layar
 ```
@@ -71,7 +80,7 @@ mockup/          # mockup HTML semua layar
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
 3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
 4. ✅ Kesehatan password dan generator pintar
-5. Ekstensi browser (simpan login dan autofill)
+5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin); berikutnya autofill, simpan login, generator di halaman
 
 ## Kredit
 

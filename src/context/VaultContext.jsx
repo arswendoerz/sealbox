@@ -7,32 +7,10 @@ import { supabase } from '../lib/supabase.js';
 import * as db from '../lib/db.js';
 import { makeBackup, openBackup } from '../lib/backup.js';
 import { mfaPending, verifySecondFactor } from '../lib/mfa.js';
+import { byName, pull, decryptRecords } from '../lib/vaultData.js';
 
 const VaultContext = createContext(null);
 export const useVault = () => useContext(VaultContext);
-
-const byName = (a, b) => a.name.localeCompare(b.name);
-
-// Fetches profile + encrypted items, falling back to the offline cache.
-async function pull(userId) {
-  const [p, i] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase.from('vault_items').select('id, iv, data, updated_at'),
-  ]);
-  if (!p.error && !i.error) {
-    const fresh = { profile: p.data, records: i.data };
-    await db.setCache(userId, fresh);
-    return { ...fresh, offline: false };
-  }
-  const cached = await db.getCache(userId);
-  if (!cached) throw new Error(`Tidak bisa terhubung ke server: ${(p.error ?? i.error).message}`);
-  return { ...cached, offline: true };
-}
-
-async function decryptRecords(records, key) {
-  const items = await Promise.all(records.map(async (r) => ({ ...(await decryptJSON(r, key)), id: r.id, updatedAt: Date.parse(r.updated_at) })));
-  return items.sort(byName);
-}
 
 // Moves a Phase 1 local vault into the online account if the email and password match it.
 async function migrateLegacy(userId, email, password, key) {
