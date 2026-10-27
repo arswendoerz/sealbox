@@ -1,5 +1,5 @@
-// Sample list (~250 words, ~8 bits/word). TODO: replace with a full 7,776-word
-// Indonesian diceware list; strength numbers are computed from WORDS.length.
+// Indonesian sample list (~250 words, ~8 bits/word). No vetted 7,776-word Indonesian diceware
+// list exists yet, so the EFF list (wordlist-en.js) is the default; strength uses WORDS.length.
 export const WORDS = `
 abu air akar alam alis amplop anak angin anggur angsa api apel arang arus asap atap awan ayam
 bahu baja bambu bantal batik batu bawang bebek becak bel belut bendera benih beruang besi biji

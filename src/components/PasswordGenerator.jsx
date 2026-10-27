@@ -7,7 +7,7 @@ export function PasswordGenerator({ onUse, onCopy }) {
   const [mode, setMode] = useState('ingat');
   const [length, setLength] = useState(20);
   const [chars, setChars] = useState({ upper: true, digits: true, symbols: true });
-  const [phrase, setPhrase] = useState({ words: 6, capitalize: true, number: true, separator: '-' });
+  const [phrase, setPhrase] = useState({ words: 6, capitalize: true, number: true, separator: '-', lang: 'en' });
   const [result, setResult] = useState(null);
 
   const generate = useCallback(() => {
@@ -46,6 +46,11 @@ export function PasswordGenerator({ onUse, onCopy }) {
           <label className="f">Jumlah kata: <b>{phrase.words}</b></label>
           <input type="range" min="3" max="7" value={phrase.words} onChange={(e) => setPhrase({ ...phrase, words: +e.target.value })} />
           <div className="opt">
+            <label>Bahasa
+              <select value={phrase.lang} onChange={(e) => setPhrase({ ...phrase, lang: e.target.value })}>
+                <option value="en">Inggris (7.776 kata)</option><option value="id">Indonesia (248 kata)</option>
+              </select>
+            </label>
             <label><input type="checkbox" checked={phrase.capitalize} onChange={(e) => setPhrase({ ...phrase, capitalize: e.target.checked })} />Kapital di awal</label>
             <label><input type="checkbox" checked={phrase.number} onChange={(e) => setPhrase({ ...phrase, number: e.target.checked })} />Angka di akhir</label>
             <label>Pemisah

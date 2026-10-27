@@ -1,5 +1,8 @@
 import { randomInt } from './encoding.js';
 import { WORDS } from './wordlist.js';
+import { WORDS_EN } from './wordlist-en.js';
+
+export const WORDLISTS = { en: WORDS_EN, id: WORDS };
 
 const LOWER = 'abcdefghijkmnopqrstuvwxyz';
 const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -12,13 +15,14 @@ export function randomPassword({ length = 20, upper = true, digits = true, symbo
   return { value, bits: length * Math.log2(pool.length) };
 }
 
-export function passphrase({ words = 4, capitalize = true, number = true, separator = '-' } = {}) {
-  const picked = Array.from({ length: words }, () => WORDS[randomInt(WORDS.length)]);
+export function passphrase({ words = 4, capitalize = true, number = true, separator = '-', lang = 'en' } = {}) {
+  const list = WORDLISTS[lang];
+  const picked = Array.from({ length: words }, () => list[randomInt(list.length)]);
   const parts = picked.map((w) => (capitalize ? w[0].toUpperCase() + w.slice(1) : w));
   const n = number ? String(randomInt(90) + 10) : '';
   if (number) parts.push(n);
   const hint = `Bayangkan: ${picked.join(', ')}${number ? `, nomor ${n}` : ''}.`;
-  const bits = words * Math.log2(WORDS.length) + (number ? Math.log2(90) : 0);
+  const bits = words * Math.log2(list.length) +(number ? Math.log2(90) : 0);
   return { value: parts.join(separator), bits, hint };
 }
 
