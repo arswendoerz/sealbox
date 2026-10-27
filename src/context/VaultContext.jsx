@@ -258,13 +258,15 @@ export function VaultProvider({ children }) {
   const saveItem = useCallback(async (item) => {
     const id = item.id ?? crypto.randomUUID();
     const { id: _, updatedAt: __, ...plain } = item;
+    const prev = items.find((i) => i.id === id);
+    plain.passwordChangedAt = !prev || prev.password !== plain.password ? Date.now() : prev.passwordChangedAt ?? prev.updatedAt;
     const row = { id, user_id: user.id, updated_at: new Date().toISOString(), ...(await encryptJSON(plain, keyRef.current)) };
     const { error } = await supabase.from('vault_items').upsert(row);
     if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
     await updateCache((rs) => [...rs.filter((r) => r.id !== id), row]);
     setItems((prev) => [...prev.filter((i) => i.id !== id), { ...plain, id, updatedAt: Date.parse(row.updated_at) }].sort(byName));
     return id;
-  }, [user, updateCache]);
+  }, [user, items, updateCache]);
 
   const deleteItem = useCallback(async (id) => {
     const { error } = await supabase.from('vault_items').delete().eq('id', id);

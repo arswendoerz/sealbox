@@ -7,8 +7,9 @@ import { ItemDetail } from '../components/ItemDetail.jsx';
 import { PasswordGenerator } from '../components/PasswordGenerator.jsx';
 import { BackupDialog } from '../components/BackupDialog.jsx';
 import { TwoFactorDialog } from '../components/TwoFactorDialog.jsx';
+import { HealthView } from '../components/HealthView.jsx';
 
-// view: 'all' | 'fav' | 'gen' | `folder:${name}`
+// view: 'all' | 'fav' | 'gen' | 'health' | `folder:${name}`
 export function Vault() {
   const { items, saveItem, deleteItem, lock, signOut, offline } = useVault();
   const { copy, message } = useClipboard(30);
@@ -31,6 +32,7 @@ export function Vault() {
   }, [items, view, query]);
 
   const selected = items.find((i) => i.id === selectedId);
+  const fullPage = view === 'gen' || view === 'health'; // views without the item list
 
   async function remove(item) {
     if (!confirm(`Hapus "${item.name}"?`)) return;
@@ -49,7 +51,7 @@ export function Vault() {
   );
 
   return (
-    <div className={`app${selected || view === 'gen' ? ' has-detail' : ''}`}>
+    <div className={`app${selected || fullPage ? ' has-detail' : ''}`}>
       <aside className="side">
         <div className="brand"><img src="/logo.svg" alt="" />Sealbox</div>
         {nav('all', 'key', 'Semua item', items.length)}
@@ -58,6 +60,7 @@ export function Vault() {
         {folders.map((f) => <span key={f}>{nav(`folder:${f}`, 'folder', f)}</span>)}
         {folders.length > 0 && <div className="sep" />}
         {nav('gen', 'wand', 'Generator')}
+        {nav('health', 'heartbeat', 'Kesehatan')}
         {offline && <div className="note warn" style={{ margin: '8px 0' }}><i className="ti ti-cloud-off" />Offline: hanya bisa dibaca</div>}
         <button className="nav" style={{ marginTop: 'auto' }} onClick={() => setBackingUp(true)}><i className="ti ti-database-export" />Backup</button>
         <button className="nav" onClick={() => setSettingMfa(true)}><i className="ti ti-shield-lock" />2FA</button>
@@ -65,7 +68,7 @@ export function Vault() {
         <button className="nav" onClick={signOut}><i className="ti ti-logout" />Keluar</button>
       </aside>
 
-      {view !== 'gen' && (
+      {!fullPage && (
         <div className="list">
           <div className="search">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari item…" />
@@ -85,7 +88,9 @@ export function Vault() {
       )}
 
       <main className="main">
-        {view === 'gen' ? (
+        {view === 'health' ? (
+          <HealthView items={items} offline={offline} onOpen={(id) => { setView('all'); setSelectedId(id); }} onBack={() => setView('all')} />
+        ) : view === 'gen' ? (
           <div className="detail">
             <button className="btn back" onClick={() => setView('all')} style={{ marginBottom: 16 }}><i className="ti ti-arrow-left" /> Kembali</button>
             <div className="card gen">

@@ -14,6 +14,7 @@ Vault disinkronkan lewat Supabase, dengan salinan terenkripsi di IndexedDB untuk
 - Generator password: mode acak dan mudah diingat (passphrase dari daftar EFF 7.776 kata, atau daftar contoh bahasa Indonesia)
 - Salin ke clipboard, dihapus otomatis setelah 30 detik
 - Backup terenkripsi: ekspor ke file `.json` dan impor kembali (dibuka dengan master password atau recovery key)
+- Kesehatan password: lemah, dipakai ulang, lama, dan cek kebocoran lewat Have I Been Pwned (k-anonymity: hanya 5 karakter awal hash SHA-1 yang dikirim)
 - 2FA (TOTP) dengan aplikasi authenticator, plus recovery code; ditegakkan oleh RLS di server
 - PWA: bisa di-install dan dibuka offline (vault dibaca dari cache terenkripsi), tanpa aset dari CDN pihak ketiga
 
