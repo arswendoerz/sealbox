@@ -147,20 +147,28 @@ export function generateWithRules(rules, length = 20) {
   throw new Error('Aturan ini tidak bisa dipenuhi.');
 }
 
-// Rules for a URL from Apple's password-manager-resources (MIT), loaded on demand.
-export async function knownRulesFor(url) {
-  let host;
-  try {
-    host = new URL(/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '');
-  } catch {
-    return null;
-  }
-  const { default: db } = await import('../data/apple-password-rules.json');
-  for (let h = host; h.includes('.'); h = h.slice(h.indexOf('.') + 1)) {
+// { domain, rules } for a host or one of its parents in `db` (domain -> rules string), or null.
+export function rulesForHost(host, db) {
+  for (let h = host.replace(/^www\./, ''); h.includes('.'); h = h.slice(h.indexOf('.') + 1)) {
     if (db[h]) return { domain: h, rules: db[h] };
   }
   return null;
 }
+
+// Rules for a URL from Apple's password-manager-resources (MIT), loaded on demand.
+export async function knownRulesFor(url) {
+  let host;
+  try {
+    host = new URL(/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`).hostname;
+  } catch {
+    return null;
+  }
+  const { default: db } = await import('../data/apple-password-rules.json');
+  return rulesForHost(host, db);
+}
+
+// Used when a site has no known rules: 20 chars with every character class.
+export const DEFAULT_RULES = 'minlength: 20; required: lower; required: upper; required: digit; required: [-~!@#$%^&*_+=?];';
 
 export const RULE_PRESETS = [
   { label: 'PIN 6 digit', rules: 'minlength: 6; maxlength: 6; required: digit;' },

@@ -32,6 +32,30 @@
     return passwordFieldsIn(el.form ?? document).length > 0 && USERNAME_HINT.test(`${el.name} ${el.id} ${el.placeholder}`);
   }
 
+  // Sign-up and change-password fields, where a generated password makes sense.
+  const NEW_HINT = /new|baru|confirm|konfirmasi|ulang|repeat|retype|register|daftar|signup|sign-up|create|buat/i;
+  const OLD_HINT = /old|lama|current|sekarang|saat ini/i;
+  function isNewPasswordField(el) {
+    if (!isPasswordField(el)) return false;
+    if (/new-password/i.test(el.autocomplete)) return true;
+    if (/current-password/i.test(el.autocomplete) || OLD_HINT.test(`${el.name} ${el.id} ${el.placeholder}`)) return false;
+    const pws = passwordFieldsIn(scopeOf(el));
+    if (pws.length >= 3) return el !== pws[0]; // current, new, confirm
+    if (pws.length === 2) return true; // new, confirm
+    return NEW_HINT.test(`${el.name} ${el.id} ${el.placeholder} ${el.getAttribute('aria-label') ?? ''} ${location.pathname}`);
+  }
+
+  // Which fields get the generated password: the marked new-password fields; otherwise new +
+  // confirm (the last two of three, leaving the current password alone), both of two, or just one.
+  function newPasswordTargets(anchor) {
+    const pws = passwordFieldsIn(scopeOf(anchor)).filter((i) => usable(i) && visible(i));
+    const marked = pws.filter((i) => /new-password/i.test(i.autocomplete));
+    if (marked.length) return marked;
+    if (pws.length >= 3) return pws.slice(-2);
+    if (pws.length === 2) return pws;
+    return [anchor];
+  }
+
   // Username + password fields around `anchor` (the focused field), or anywhere on the page.
   function fieldsFor(anchor, within) {
     const scope = within ?? anchor?.form ?? document;
@@ -153,6 +177,27 @@
       return;
     }
     const parts = [line('head', 'Sealbox')];
+    if (!r.blocked && isNewPasswordField(field)) {
+      // Works while the vault is locked too: saving comes later, after the form is sent.
+      const gen = document.createElement('button');
+      gen.className = 'row';
+      gen.append(line('', '✨ Buat password kuat'), Object.assign(document.createElement('small'), { textContent: 'Diisi ke kolom password dan konfirmasinya' }));
+      gen.addEventListener('click', async (e) => {
+        if (!e.isTrusted) return;
+        const target = field;
+        try {
+          const username = fieldsFor(target, scopeOf(target)).user?.value ?? '';
+          const { password, rulesFrom } = await ask('generate', { username });
+          for (const el of newPasswordTargets(target)) setValue(el, password);
+          menu.replaceChildren(line('head', 'Sealbox'), line('msg',
+            `Password kuat (${password.length} karakter${rulesFrom ? `, sesuai aturan ${rulesFrom}` : ''}) sudah diisi. Sealbox menawarkan menyimpannya setelah form dikirim.`));
+          setTimeout(closeMenu, 4000);
+        } catch (err) {
+          menu.replaceChildren(line('head', 'Sealbox'), line('msg', err.message));
+        }
+      });
+      parts.push(gen);
+    }
     if (r.blocked) parts.push(line('msg', 'Isi otomatis tidak tersedia di frame ini.'));
     else if (r.locked) {
       parts.push(line('msg', 'Vault terkunci.'));

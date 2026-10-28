@@ -48,6 +48,8 @@ Autofill: ikon Sealbox muncul di kolom login; isi hanya setelah diklik. Login di
 
 Simpan login: setelah login atau daftar, banner menawarkan "Simpan" atau "Perbarui". Login yang menunggu disimpan di `chrome.storage.session` paling lama 3 menit dan hanya ditawarkan di situs yang sama. Jika vault terkunci, tawaran muncul di popup setelah vault dibuka.
 
+Generator di halaman: kolom password baru (daftar, ubah password) mendapat pilihan "Buat password kuat" di menu Sealbox. Password 20 karakter mengikuti aturan situs bila dikenal, diisi ke kolom password dan konfirmasinya, dan langsung disimpan sementara (10 menit) supaya bisa disimpan dari popup walaupun pengiriman form tidak terdeteksi.
+
 ## Desain kriptografi
 
 ```
@@ -84,7 +86,7 @@ mockup/          # mockup HTML semua layar
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
 3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
 4. ✅ Kesehatan password dan generator pintar
-5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin), ✅ M2 autofill, ✅ M3 simpan login; berikutnya generator di halaman
+5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin), ✅ M2 autofill, ✅ M3 simpan login, ✅ M4 generator di halaman
 
 ## Kredit
 

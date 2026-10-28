@@ -9,10 +9,13 @@ import { encryptJSON } from '../../src/crypto/aes.js';
 import { clearCache, getCache, setCache } from '../../src/lib/db.js';
 import { siteOf, itemMatches } from './site.js';
 import { decide, newItem } from './saveLogin.js';
+import { parseRules, generateWithRules, rulesForHost, DEFAULT_RULES } from '../../src/lib/passwordRules.js';
+import ruleDb from '../../src/data/apple-password-rules.json'; // static: service workers can't import()
 
 const AUTO_LOCK_MINUTES = 5;
 const CLIPBOARD_SECONDS = 30;
 const PENDING_MS = 3 * 60 * 1000; // how long a submitted login waits for "Simpan"
+const GENERATED_MS = 10 * 60 * 1000; // a generated password not yet submitted
 const USERNAME_MS = 5 * 60 * 1000; // step 1 of a two-step login (email first, password next)
 
 // The service worker is stopped after ~30 s idle, so the vault key can't live in a variable.
@@ -189,7 +192,7 @@ async function captured({ username = '', password }, sender) {
 async function offerFor(tabId, tabUrl) {
   const p = await sessionValue(pendingKey(tabId));
   if (!p) return {};
-  if (Date.now() - p.at > PENDING_MS) {
+  if (Date.now() - p.at > (p.generated ? GENERATED_MS : PENDING_MS)) {
     await chrome.storage.session.remove(pendingKey(tabId));
     return {};
   }
@@ -203,7 +206,21 @@ async function offerFor(tabId, tabUrl) {
     await chrome.storage.session.remove(pendingKey(tabId));
     return {};
   }
-  return { offer: { kind: d.kind, host: from.host, username: p.username } };
+  return { offer: { kind: d.kind, host: from.host, username: p.username, generated: !!p.generated } };
+}
+
+// A strong password for a sign-up / change-password field, following the site's known rules.
+// It is kept as a pending login right away, so it can still be saved from the popup if the
+// form's submit isn't detected (the site may already have accepted it).
+async function generate({ username = '' }, sender) {
+  const page = pageOf(sender);
+  if (!page) throw new Error('Generator tidak tersedia di frame ini.');
+  const known = rulesForHost(page.host, ruleDb);
+  const { value } = generateWithRules(parseRules(known?.rules ?? DEFAULT_RULES), 20);
+  await chrome.storage.session.set({
+    [pendingKey(sender.tab.id)]: { url: sender.url, username: username.trim(), password: value, at: Date.now(), generated: true },
+  });
+  return { password: value, rulesFrom: known?.domain ?? null };
 }
 
 // choice: 'save' (save or update), 'never' (this site) or 'dismiss'.
@@ -289,7 +306,7 @@ async function clearClipboard() {
 
 // Extension pages (popup) can do everything; content scripts (sender.tab set) only these.
 const popupHandlers = { state, open, items, lock, signOut, clearClipboardLater, fillActiveTab, pendingForActiveTab, respondForActiveTab };
-const pageHandlers = { matches, fill, openPopup, captured, rememberUsername, pendingOffer, respond };
+const pageHandlers = { matches, fill, openPopup, captured, rememberUsername, pendingOffer, respond, generate };
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;
