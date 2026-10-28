@@ -456,7 +456,8 @@
     // Fill requested from the popup (top frame only; the background checked the site).
     if (msg?.type === 'sealbox:fill') {
       const anchor = eligible(document.activeElement) ? document.activeElement : null;
-      reply({ ok: fillFields(anchor, msg) });
+      // Fill only if the page is still on the origin the background checked (no navigation since).
+      reply({ ok: msg.origin === location.origin && fillFields(anchor, msg) });
     }
     // A single-page login was submitted without navigating.
     if (msg?.type === 'sealbox:offer-ready') offerSave();

@@ -1,13 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { deriveAccountKeys, deriveMasterKey, normalizeEmail, KDF_ITERATIONS, KDF_VERSION } from '../crypto/kdf.js';
 import { encryptJSON, decryptJSON } from '../crypto/aes.js';
-import { generateVaultKey, wrapVaultKey, unwrapVaultKey, generateRecoveryKey, recoveryWrappingKey } from '../crypto/keys.js';
+import { generateVaultKey, wrapVaultKey, unwrapVaultKey, generateRecoveryKey, recoveryWrappingKey, nonExtractable, keyProof, sha256Hex } from '../crypto/keys.js';
 import { fromBase64 } from '../crypto/encoding.js';
 import { supabase } from '../lib/supabase.js';
 import * as db from '../lib/db.js';
 import { makeBackup, openBackup } from '../lib/backup.js';
 import { mfaPending, verifySecondFactor } from '../lib/mfa.js';
-import { byName, pull, decryptRecords } from '../lib/vaultData.js';
+import { byName, pull, decryptRecords, hasKeyVersions, writeError } from '../lib/vaultData.js';
+import { rotateVaultKey } from '../lib/rotate.js';
+
+const MFA_STEP_MS = 5 * 60 * 1000; // the 2FA screen holds the master key; give up after this
 import { clearClipboard } from '../hooks/useClipboard.js';
 
 const VaultContext = createContext(null);
@@ -48,6 +51,8 @@ export function VaultProvider({ children }) {
   const keyRef = useRef(null); // vault key: memory only, never persisted
   const authFlow = useRef(false); // true while register/login drive the state themselves
   const mfaRef = useRef(null); // { u, masterKey, password } held while status is 'mfa'
+  const mfaTimer = useRef(null);
+  const keyVersionRef = useRef(null); // profile.key_version the items are written with (null before migration 0004)
 
   useEffect(() => {
     db.getLegacyVault().then((l) => setHasLegacy(l?.account.email ?? null));
@@ -73,7 +78,8 @@ export function VaultProvider({ children }) {
   }, []);
 
   const enter = useCallback(async (u, key, password, pulled) => {
-    const { records, offline: off } = pulled ?? (await pull(u.id));
+    const { profile, records, offline: off } = pulled ?? (await pull(u.id));
+    keyVersionRef.current = profile?.key_version ?? null;
     const moved = off ? [] : await migrateLegacy(u.id, u.email, password, key);
     if (moved.length) setHasLegacy(null);
     keyRef.current = key;
@@ -86,6 +92,11 @@ export function VaultProvider({ children }) {
   const unlockWith = useCallback(async (u, masterKey, password) => {
     if (await mfaPending()) {
       mfaRef.current = { u, masterKey, password };
+      clearTimeout(mfaTimer.current);
+      mfaTimer.current = setTimeout(() => {
+        mfaRef.current = null;
+        setStatus((s) => (s === 'mfa' ? 'locked' : s));
+      }, MFA_STEP_MS);
       setUser(u);
       setStatus('mfa');
       return;
@@ -93,11 +104,15 @@ export function VaultProvider({ children }) {
     const pulled = await pull(u.id);
     let key;
     try {
-      key = await unwrapVaultKey(pulled.profile.wrapped_key, masterKey);
+      key = await unwrapVaultKey(pulled.profile.wrapped_key, masterKey, true); // extractable only for the proof below
     } catch {
       throw new Error('Master password salah.');
     }
-    await enter(u, key, password, pulled);
+    // Accounts from before migration 0004 get their key proof now, so recovery can rotate the key later.
+    if (hasKeyVersions(pulled.profile) && !pulled.profile.key_proof_hash && !pulled.offline) {
+      await supabase.rpc('set_key_proof', { p_proof_hash: await sha256Hex(await keyProof(key)) });
+    }
+    await enter(u, await nonExtractable(key), password, pulled);
   }, [enter]);
 
   // Returns the recovery key so the UI can show it exactly once.
@@ -117,6 +132,7 @@ export function VaultProvider({ children }) {
           kdf_iterations: KDF_ITERATIONS,
           wrapped_key: await wrapVaultKey(key, masterKey),
           recovery_wrapped_key: await wrapVaultKey(key, await recoveryWrappingKey(recoveryKey)),
+          key_proof_hash: await sha256Hex(await keyProof(key)), // moved into profiles and removed by the server
         },
       },
     });
@@ -131,7 +147,7 @@ export function VaultProvider({ children }) {
       needsConfirmation: !session,
       finish: async () => {
         try {
-          if (session) await enter({ id: session.user.id, email }, key, password);
+          if (session) await enter({ id: session.user.id, email }, await nonExtractable(key), password);
           else setStatus('signedOut');
         } finally {
           authFlow.current = false;
@@ -181,9 +197,11 @@ export function VaultProvider({ children }) {
 
   // Second step of login/unlock for accounts with 2FA.
   const completeMfa = useCallback(async (code) => {
+    if (!mfaRef.current) throw new Error('Waktu habis. Masukkan master password lagi.');
     await verifySecondFactor(code);
     const { u, masterKey, password } = mfaRef.current;
     mfaRef.current = null;
+    clearTimeout(mfaTimer.current);
     await unlockWith(u, masterKey, password);
   }, [unlockWith]);
 
@@ -197,6 +215,7 @@ export function VaultProvider({ children }) {
   const signOut = useCallback(async () => {
     keyRef.current = null;
     mfaRef.current = null;
+    clearTimeout(mfaTimer.current);
     clearClipboard();
     await db.clearCache();
     await supabase.auth.signOut();
@@ -207,7 +226,9 @@ export function VaultProvider({ children }) {
     if (error) throw new Error(error.message);
   }, []);
 
-  // Needs a session (from the reset email link). Re-wraps the vault key under a new master password.
+  // Needs a session (from the reset email link). Sets a new master password and, from migration
+  // 0004 on, a brand-new vault key (all items re-encrypted), so whoever knew the old master
+  // password or holds an old copy of the wrapped key can't open the vault any more.
   // With 2FA, the reset-link session must pass it first (mfaCode), or this throws { code: 'mfa' }.
   const completeRecovery = useCallback(async (recoveryKey, newPassword, mfaCode) => {
     if (await mfaPending()) {
@@ -216,18 +237,24 @@ export function VaultProvider({ children }) {
     }
     const pulled = await pull(user.id);
     if (pulled.offline) throw new Error('Pemulihan butuh koneksi internet.');
+    const recoveryWrapKey = await recoveryWrappingKey(recoveryKey);
     let key;
     try {
-      key = await unwrapVaultKey(pulled.profile.recovery_wrapped_key, await recoveryWrappingKey(recoveryKey), true);
+      key = await unwrapVaultKey(pulled.profile.recovery_wrapped_key, recoveryWrapKey, true);
     } catch {
       throw new Error('Recovery key tidak cocok.');
     }
     const { masterKey, authHash } = await deriveAccountKeys(user.email, newPassword);
-    const wrapped = await wrapVaultKey(key, masterKey);
+    // Vault first, account password second: if the second step fails, the same recovery key
+    // still opens the (already rotated) vault, so running recovery again finishes the job.
+    if (hasKeyVersions(pulled.profile)) {
+      await rotateVaultKey({ oldKey: key, profile: pulled.profile, masterKey, recoveryWrapKey });
+    } else {
+      const up = await supabase.from('profiles').update({ wrapped_key: await wrapVaultKey(key, masterKey) }).eq('id', user.id);
+      if (up.error) throw new Error(up.error.message);
+    }
     const pw = await supabase.auth.updateUser({ password: authHash });
-    if (pw.error) throw new Error(pw.error.message);
-    const up = await supabase.from('profiles').update({ wrapped_key: wrapped }).eq('id', user.id);
-    if (up.error) throw new Error(up.error.message);
+    if (pw.error) throw new Error(`Vault sudah diperbarui, tapi password akun gagal diganti (${pw.error.message}). Ulangi pemulihan dengan recovery key yang sama.`);
     await unlockWith(user, masterKey, newPassword);
   }, [user, unlockWith]);
 
@@ -236,18 +263,31 @@ export function VaultProvider({ children }) {
     if (cached) await db.setCache(user.id, { ...cached, records: fn(cached.records) });
   }, [user]);
 
+  // Item rows carry the key version so the server can refuse writes made with a replaced key.
+  const toRow = useCallback(async (id, plain, updatedAt = new Date().toISOString()) => ({
+    id, user_id: user.id, updated_at: updatedAt,
+    ...(keyVersionRef.current != null && { key_version: keyVersionRef.current }),
+    ...(await encryptJSON(plain, keyRef.current)),
+  }), [user]);
+
+  const failWrite = useCallback((error, action) => {
+    const err = writeError(error, action);
+    if (err.stale) lock(); // this device holds an old vault key
+    return err;
+  }, [lock]);
+
   const saveItem = useCallback(async (item) => {
     const id = item.id ?? crypto.randomUUID();
     const { id: _, updatedAt: __, ...plain } = item;
     const prev = items.find((i) => i.id === id);
     plain.passwordChangedAt = !prev || prev.password !== plain.password ? Date.now() : prev.passwordChangedAt ?? prev.updatedAt;
-    const row = { id, user_id: user.id, updated_at: new Date().toISOString(), ...(await encryptJSON(plain, keyRef.current)) };
+    const row = await toRow(id, plain);
     const { error } = await supabase.from('vault_items').upsert(row);
-    if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
+    if (error) throw failWrite(error, 'menyimpan');
     await updateCache((rs) => [...rs.filter((r) => r.id !== id), row]);
     setItems((prev) => [...prev.filter((i) => i.id !== id), { ...plain, id, updatedAt: Date.parse(row.updated_at) }].sort(byName));
     return id;
-  }, [user, items, updateCache]);
+  }, [items, toRow, failWrite, updateCache]);
 
   const deleteItem = useCallback(async (id) => {
     const { error } = await supabase.from('vault_items').delete().eq('id', id);
@@ -292,34 +332,37 @@ export function VaultProvider({ children }) {
     const changed = sameVault
       ? incoming.filter((i) => !(current.get(i.id)?.updatedAt >= i.updatedAt))
       : incoming.map((i) => ({ ...i, id: crypto.randomUUID() }));
-    const rows = await Promise.all(changed.map(async ({ id, updatedAt, ...plain }) => ({
-      id, user_id: user.id, updated_at: new Date(updatedAt).toISOString(), ...(await encryptJSON(plain, keyRef.current)),
-    })));
+    const rows = await Promise.all(changed.map(({ id, updatedAt, ...plain }) => toRow(id, plain, new Date(updatedAt).toISOString())));
     if (rows.length) {
       const { error } = await supabase.from('vault_items').upsert(rows);
-      if (error) throw new Error(`Gagal mengimpor: ${error.message}`);
+      if (error) throw failWrite(error, 'mengimpor');
       const ids = new Set(rows.map((r) => r.id));
       await updateCache((rs) => [...rs.filter((r) => !ids.has(r.id)), ...rows]);
       setItems((prev) => [...prev.filter((i) => !ids.has(i.id)), ...changed].sort(byName));
     }
     const added = changed.filter((i) => !current.has(i.id)).length;
     return { added, updated: changed.length - added, skipped: incoming.length - changed.length };
-  }, [user, items, offline, updateCache]);
+  }, [items, offline, toRow, failWrite, updateCache]);
 
   // Pick up changes made on other devices when the tab regains focus.
   useEffect(() => {
     if (status !== 'unlocked') return;
     const onFocus = async () => {
-      if (document.visibilityState !== 'visible' || !keyRef.current) return;
+      const key = keyRef.current;
+      if (document.visibilityState !== 'visible' || !key) return;
       try {
-        const { records, offline: off } = await pull(user.id);
-        setItems(await decryptRecords(records, keyRef.current));
+        const { profile, records, offline: off } = await pull(user.id);
+        if (keyRef.current !== key) return; // locked meanwhile: don't bring plaintext back
+        if (keyVersionRef.current != null && profile?.key_version !== keyVersionRef.current) return lock(); // key rotated elsewhere
+        const decrypted = await decryptRecords(records, key);
+        if (keyRef.current !== key) return;
+        setItems(decrypted);
         setOffline(off);
       } catch { /* keep what we have */ }
     };
     document.addEventListener('visibilitychange', onFocus);
     return () => document.removeEventListener('visibilitychange', onFocus);
-  }, [status, user]);
+  }, [status, user, lock]);
 
   const discardLegacy = useCallback(async () => {
     await db.deleteLegacyVault();

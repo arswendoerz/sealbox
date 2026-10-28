@@ -3,7 +3,7 @@ import { supabase } from '../../src/lib/supabase.js';
 import { deriveAccountKeys, normalizeEmail } from '../../src/crypto/kdf.js';
 import { unwrapVaultKey } from '../../src/crypto/keys.js';
 import { toBase64, fromBase64 } from '../../src/crypto/encoding.js';
-import { pull, decryptRecords } from '../../src/lib/vaultData.js';
+import { pull, decryptRecords, writeError } from '../../src/lib/vaultData.js';
 import { mfaPending, verifySecondFactor } from '../../src/lib/mfa.js';
 import { encryptJSON } from '../../src/crypto/aes.js';
 import { clearCache, getCache, setCache } from '../../src/lib/db.js';
@@ -25,8 +25,10 @@ async function getKey() {
   return vaultKey && crypto.subtle.importKey('raw', fromBase64(vaultKey), 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
-async function setKey(key) {
-  await chrome.storage.session.set({ vaultKey: toBase64(await crypto.subtle.exportKey('raw', key)) });
+// keyVersion: profile.key_version the key belongs to (null before migration 0004); written items
+// carry it so the server refuses writes after the key was rotated elsewhere.
+async function setKey(key, keyVersion) {
+  await chrome.storage.session.set({ vaultKey: toBase64(await crypto.subtle.exportKey('raw', key)), keyVersion: keyVersion ?? null });
   touch();
 }
 
@@ -35,7 +37,7 @@ const touch = () => chrome.alarms.create('autolock', { delayInMinutes: AUTO_LOCK
 // Locking also drops logins waiting to be saved: they hold plaintext passwords.
 async function lock() {
   const all = await chrome.storage.session.get(null);
-  await chrome.storage.session.remove(['vaultKey', ...Object.keys(all).filter((k) => /^(pending|user):/.test(k))]);
+  await chrome.storage.session.remove(['vaultKey', 'keyVersion', ...Object.keys(all).filter((k) => /^(pending|user):/.test(k))]);
   await chrome.alarms.clear('autolock');
   return {};
 }
@@ -79,7 +81,7 @@ async function open({ email, password, code }) {
   } catch {
     throw new Error('Master password salah.');
   }
-  await setKey(key);
+  await setKey(key, profile.key_version);
   return {};
 }
 
@@ -87,7 +89,12 @@ async function items() {
   const key = await getKey();
   if (!key) throw new Error('Vault terkunci.');
   touch();
-  const { records, offline } = await pull((await session()).user.id);
+  const { profile, records, offline } = await pull((await session()).user.id);
+  const { keyVersion } = await chrome.storage.session.get('keyVersion');
+  if (keyVersion != null && profile?.key_version !== keyVersion) {
+    await lock();
+    throw new Error('Kunci vault diganti di perangkat lain. Buka ulang vault.');
+  }
   return { items: await decryptRecords(records, key), offline };
 }
 
@@ -136,7 +143,9 @@ async function fill({ id }, sender) {
 async function fillActiveTab({ id }) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const cred = await credentialFor(id, siteOf(tab?.url));
-  const message = { type: 'sealbox:fill', ...cred };
+  // The tab may navigate between this check and the fill; the content script fills only if it is
+  // still on the origin that was checked.
+  const message = { type: 'sealbox:fill', origin: new URL(tab.url).origin, ...cred };
   try {
     await chrome.tabs.sendMessage(tab.id, message, { frameId: 0 });
   } catch {
@@ -167,9 +176,18 @@ async function putItem({ id, updatedAt: _, ...plain }) {
   const key = await getKey();
   if (!key) throw new Error('Vault terkunci.');
   const s = await session();
-  const row = { id, user_id: s.user.id, updated_at: new Date().toISOString(), ...(await encryptJSON(plain, key)) };
+  const { keyVersion } = await chrome.storage.session.get('keyVersion');
+  const row = {
+    id, user_id: s.user.id, updated_at: new Date().toISOString(),
+    ...(keyVersion != null && { key_version: keyVersion }),
+    ...(await encryptJSON(plain, key)),
+  };
   const { error } = await supabase.from('vault_items').upsert(row);
-  if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
+  if (error) {
+    const err = writeError(error, 'menyimpan');
+    if (err.stale) await lock(); // the key was rotated on another device
+    throw err;
+  }
   const cached = await getCache(s.user.id);
   if (cached) await setCache(s.user.id, { ...cached, records: [...cached.records.filter((r) => r.id !== id), row] });
 }
@@ -330,4 +348,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'autolock') lock();
   if (alarm.name === 'clipboard') clearClipboard().catch(() => {});
+});
+
+// Lock as soon as the computer's screen locks, not only after 5 idle minutes.
+chrome.idle.onStateChanged.addListener((s) => {
+  if (s === 'locked') lock();
 });
