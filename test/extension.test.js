@@ -43,6 +43,18 @@ describe('itemMatches', () => {
     expect(itemMatches('http://example.com', page('https://example.com'))).toBe(true);
   });
 
+  it('with exactHost, matches only the same host and port', () => {
+    const url = 'https://login.shared.co.id';
+    expect(itemMatches(url, page('https://login.shared.co.id/x'), true)).toBe(true);
+    expect(itemMatches(url, page('https://www.login.shared.co.id'), true)).toBe(true);
+    expect(itemMatches(url, page('https://evil.shared.co.id'), true)).toBe(false);
+    expect(itemMatches(url, page('https://shared.co.id'), true)).toBe(false);
+    expect(itemMatches(url, page('https://login.shared.co.id:8443'), true)).toBe(false);
+    expect(itemMatches(url, page('https://evil.shared.co.id'))).toBe(true); // default: whole site
+    expect(itemMatches('localhost:3000', page('http://localhost:3000'), true)).toBe(true);
+    expect(itemMatches('localhost:3000', page('http://localhost:5173'), true)).toBe(false);
+  });
+
   it('ignores items without a usable URL', () => {
     expect(itemMatches('', page('https://example.com'))).toBe(false);
     expect(itemMatches('javascript:x', page('https://example.com'))).toBe(false);
@@ -74,6 +86,12 @@ describe('decide (offer to save a login)', () => {
     expect(decide({ url: 'https://other.com', username: 'alice@x.com', password: 'new' }, [saved])).toEqual({ kind: 'save' });
     expect(decide({ url, username: 'alice@x.com', password: '' }, [saved])).toBeNull();
     expect(decide({ url: 'javascript:x', username: 'a', password: 'b' }, [])).toBeNull();
+  });
+
+  it('treats an exactHost login on another subdomain as a different login', () => {
+    const exact = { ...saved, exactHost: true, url: 'https://app.example.com' };
+    expect(decide({ url: 'https://app.example.com/login', username: 'alice@x.com', password: 'new' }, [exact])).toEqual({ kind: 'update', item: exact });
+    expect(decide({ url: 'https://other.example.com/login', username: 'alice@x.com', password: 'new' }, [exact])).toEqual({ kind: 'save' });
   });
 
   it('builds a new item from the page origin', () => {

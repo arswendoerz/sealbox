@@ -123,12 +123,12 @@ async function matches(_msg, sender) {
   const all = await cachedItems();
   if (!all) return { locked: true };
   touch();
-  return { items: all.filter((i) => itemMatches(i.url, page)).map(({ id, name, username }) => ({ id, name, username })) };
+  return { items: all.filter((i) => itemMatches(i.url, page, i.exactHost)).map(({ id, name, username }) => ({ id, name, username })) };
 }
 
 async function credentialFor(id, page) {
   const item = (await cachedItems())?.find((i) => i.id === id);
-  if (!item || !itemMatches(item.url, page)) throw new Error('Item ini bukan untuk situs ini.');
+  if (!item || !itemMatches(item.url, page, item.exactHost)) throw new Error('Item ini bukan untuk situs ini.');
   touch();
   return { username: item.username ?? '', password: item.password ?? '' };
 }

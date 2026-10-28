@@ -3,7 +3,7 @@ import { StrengthMeter } from './StrengthMeter.jsx';
 import { PasswordGenerator } from './PasswordGenerator.jsx';
 import { parseRules, checkRules, describeRules, knownRulesFor, RULE_PRESETS } from '../lib/passwordRules.js';
 
-const EMPTY = { name: '', url: '', username: '', password: '', folder: '', notes: '', favorite: false, rules: '' };
+const EMPTY = { name: '', url: '', username: '', password: '', folder: '', notes: '', favorite: false, exactHost: false, rules: '' };
 
 export function ItemForm({ item, folders, onSave, onClose }) {
   const [form, setForm] = useState({ ...EMPTY, ...item });
@@ -44,6 +44,9 @@ export function ItemForm({ item, folders, onSave, onClose }) {
         <input value={form.name} onChange={set('name')} placeholder="Gmail" autoFocus />
         <label className="f">URL</label>
         <input value={form.url} onChange={set('url')} placeholder="https://mail.google.com" />
+        <label className="check" style={{ marginTop: -6 }} title="Tanpa ini, ekstensi juga menawarkan login di subdomain lain dari situs yang sama.">
+          <input type="checkbox" checked={form.exactHost} onChange={set('exactHost')} />Isi otomatis hanya di alamat ini persis (bukan subdomain lain)
+        </label>
         <label className="f">Username / email</label>
         <input value={form.username} onChange={set('username')} autoComplete="off" />
         <label className="f">Password</label>

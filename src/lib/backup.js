@@ -43,7 +43,7 @@ const TEXT_FIELDS = ['name', 'url', 'username', 'password', 'folder', 'notes', '
 // Keeps only known fields with the right types, so an imported item can't break the vault UI.
 function cleanItem(raw, id, updatedAt) {
   if (!UUID.test(id) || typeof raw !== 'object' || raw === null) throw new Error('bad item');
-  const item = { id, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(), favorite: raw.favorite === true };
+  const item = { id, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(), favorite: raw.favorite === true, exactHost: raw.exactHost === true };
   for (const f of TEXT_FIELDS) item[f] = typeof raw[f] === 'string' ? raw[f] : '';
   if (!item.name.trim()) item.name = item.url || 'Tanpa nama';
   if (Number.isFinite(raw.passwordChangedAt)) item.passwordChangedAt = raw.passwordChangedAt;
@@ -81,4 +81,21 @@ export async function openBackup(backup, currentKey, secret) {
   const items = key && (await decryptAll(backup.items, key));
   if (!items) throw new Error('Master password atau recovery key tidak cocok dengan backup ini.');
   return { items, sameVault: false };
+}
+
+// Which imported items to write, given the vault's current items. Returns
+// { changed, added, updated, skipped, olderKey }.
+//   same vault: restore items that are missing or older here
+//   other vault: add every item under a new id
+//   this vault from before its key was replaced (needed a secret, yet shares item ids): add only
+//   the items that no longer exist, and never overwrite one, since a file opened with its own
+//   secret can't be trusted to be ours. Later versions of existing items are in Riwayat.
+export function planImport(incoming, sameVault, currentItems) {
+  const current = new Map(currentItems.map((i) => [i.id, i]));
+  const olderKey = !sameVault && incoming.some((i) => current.has(i.id));
+  const changed = sameVault
+    ? incoming.filter((i) => !(current.get(i.id)?.updatedAt >= i.updatedAt))
+    : incoming.filter((i) => !current.has(i.id)).map((i) => ({ ...i, id: crypto.randomUUID() }));
+  const added = changed.filter((i) => !current.has(i.id)).length;
+  return { changed, added, updated: changed.length - added, skipped: incoming.length - changed.length, olderKey };
 }

@@ -125,7 +125,7 @@ function VaultList({ onLocked }) {
   const { here, rest } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const shown = (items ?? []).filter((i) => !q || [i.name, i.username, i.url].some((v) => v?.toLowerCase().includes(q)));
-    const isHere = (i) => itemMatches(i.url, page);
+    const isHere = (i) => itemMatches(i.url, page, i.exactHost);
     return { here: shown.filter(isHere), rest: shown.filter((i) => !isHere(i)) };
   }, [items, page, query]);
 

@@ -5,7 +5,7 @@ import { generateVaultKey, wrapVaultKey, unwrapVaultKey, generateRecoveryKey, re
 import { fromBase64 } from '../crypto/encoding.js';
 import { supabase } from '../lib/supabase.js';
 import * as db from '../lib/db.js';
-import { makeBackup, openBackup } from '../lib/backup.js';
+import { makeBackup, openBackup, planImport } from '../lib/backup.js';
 import { mfaPending, verifySecondFactor } from '../lib/mfa.js';
 import { byName, pull, decryptRecords, hasKeyVersions, writeError } from '../lib/vaultData.js';
 import { rotateVaultKey } from '../lib/rotate.js';
@@ -323,15 +323,12 @@ export function VaultProvider({ children }) {
     return makeBackup(user.email, profile, records);
   }, [user]);
 
-  // Adds new items and replaces older ones; never deletes. Items from another vault get fresh ids
-  // because ids are unique across all accounts.
+  // Adds new items and replaces older ones; never deletes. See planImport for backups of other
+  // vaults and of this vault from before its key was replaced.
   const importBackup = useCallback(async (backup, secret) => {
     if (offline) throw new Error('Impor butuh koneksi internet.');
     const { items: incoming, sameVault } = await openBackup(backup, keyRef.current, secret);
-    const current = new Map(items.map((i) => [i.id, i]));
-    const changed = sameVault
-      ? incoming.filter((i) => !(current.get(i.id)?.updatedAt >= i.updatedAt))
-      : incoming.map((i) => ({ ...i, id: crypto.randomUUID() }));
+    const { changed, ...counts } = planImport(incoming, sameVault, items);
     const rows = await Promise.all(changed.map(({ id, updatedAt, ...plain }) => toRow(id, plain, new Date(updatedAt).toISOString())));
     if (rows.length) {
       const { error } = await supabase.from('vault_items').upsert(rows);
@@ -340,8 +337,7 @@ export function VaultProvider({ children }) {
       await updateCache((rs) => [...rs.filter((r) => !ids.has(r.id)), ...rows]);
       setItems((prev) => [...prev.filter((i) => !ids.has(i.id)), ...changed].sort(byName));
     }
-    const added = changed.filter((i) => !current.has(i.id)).length;
-    return { added, updated: changed.length - added, skipped: incoming.length - changed.length };
+    return counts;
   }, [items, offline, toRow, failWrite, updateCache]);
 
   // Pick up changes made on other devices when the tab regains focus.

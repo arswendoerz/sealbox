@@ -2,13 +2,15 @@ import { useRef, useState } from 'react';
 import { useVault } from '../context/VaultContext.jsx';
 import { parseBackup } from '../lib/backup.js';
 
-function summary({ added, updated, skipped }) {
+function summary({ added, updated, skipped, olderKey }) {
   const parts = [added && `${added} item baru`, updated && `${updated} diperbarui`, skipped && `${skipped} sudah ada`].filter(Boolean);
-  return parts.length ? `Impor selesai: ${parts.join(', ')}.` : 'Backup ini kosong.';
+  const text = parts.length ? `Impor selesai: ${parts.join(', ')}.` : 'Backup ini kosong.';
+  // Items that still exist are left as they are; changes since then are in Riwayat (30 days).
+  return olderKey ? `${text} Backup ini dibuat sebelum kunci vault diganti, jadi item yang masih ada tidak ditimpa.` : text;
 }
 
 export function BackupDialog({ onClose }) {
-  const { exportBackup, importBackup, offline } = useVault();
+  const { exportBackup, importBackup, offline, user } = useVault();
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(''); // '' | 'export' | 'import'
   const [error, setError] = useState('');
@@ -74,7 +76,11 @@ export function BackupDialog({ onClose }) {
         <p className="hint">Item baru ditambahkan, item yang sama diganti hanya jika versi di backup lebih baru. Tidak ada item yang dihapus.</p>
         {pending ? (
           <form onSubmit={unlockPending}>
-            <div className="note warn"><i className="ti ti-key" />Backup ini dari vault lain ({pending.email}). Masukkan master password atau recovery key-nya.</div>
+            <div className="note warn"><i className="ti ti-key" />
+              {pending.email === user?.email
+                ? 'Backup ini dari akun ini, tetapi dibuat sebelum kunci vault diganti (misalnya setelah pemulihan). Masukkan recovery key, atau master password yang berlaku saat backup dibuat.'
+                : `Backup ini dari vault lain (${pending.email}). Masukkan master password atau recovery key-nya.`}
+            </div>
             <input type="password" autoFocus value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Master password atau recovery key" autoComplete="off" />
             <div className="row" style={{ justifyContent: 'flex-end' }}>
               <button type="button" className="btn" onClick={() => { setPending(null); setSecret(''); setError(''); }} disabled={!!busy}>Batal</button>

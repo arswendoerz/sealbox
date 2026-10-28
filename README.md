@@ -54,7 +54,7 @@ npm run build:ext
 
 Buka `chrome://extensions`, nyalakan **Developer mode**, klik **Load unpacked**, lalu pilih folder `extension/dist`. Setelah build ulang, klik ↻ pada kartu Sealbox. Ekstensi memakai `.env.local` yang sama dan login sendiri (email, master password, 2FA). Vault Key disimpan di `chrome.storage.session` (hanya di memori) dan dihapus setelah 5 menit tidak dipakai.
 
-Autofill: ikon Sealbox muncul di kolom login; isi hanya setelah diklik. Login ditawarkan hanya untuk situs yang sama menurut *public suffix list* (`tldts`), item https tidak ditawarkan di halaman http, dan iframe dari situs lain tidak diisi.
+Autofill: ikon Sealbox muncul di kolom login; isi hanya setelah diklik. Login ditawarkan hanya untuk situs yang sama menurut *public suffix list* (`tldts`), item https tidak ditawarkan di halaman http, dan iframe dari situs lain tidak diisi. Untuk domain bersama (misalnya subdomain milik pihak lain), centang "Isi otomatis hanya di alamat ini persis" di item: login lalu hanya ditawarkan di host dan port yang sama.
 
 Simpan login: setelah login atau daftar, banner menawarkan "Simpan" atau "Perbarui". Login yang menunggu disimpan di `chrome.storage.session` paling lama 3 menit dan hanya ditawarkan di situs yang sama. Jika vault terkunci, tawaran muncul di popup setelah vault dibuka.
 

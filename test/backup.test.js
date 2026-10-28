@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { deriveAccountKeys } from '../src/crypto/kdf.js';
 import { encryptJSON } from '../src/crypto/aes.js';
 import { generateVaultKey, wrapVaultKey, generateRecoveryKey, recoveryWrappingKey } from '../src/crypto/keys.js';
-import { makeBackup, parseBackup, openBackup } from '../src/lib/backup.js';
+import { makeBackup, parseBackup, openBackup, planImport } from '../src/lib/backup.js';
 
 const ITERATIONS = 100_000; // the lowest count a backup may declare
 
@@ -112,7 +112,7 @@ describe('importing untrusted items', () => {
   it('keeps only known fields with the right types', async () => {
     const evil = await account('e@x.com', 'pw-e', [{ name: 42, password: { x: 1 }, favorite: 'yes', extra: 1 }]);
     const [item] = (await openBackup(parseBackup(fileOf(evil)), evil.key)).items;
-    expect(item).toMatchObject({ name: 'Tanpa nama', password: '', favorite: false });
+    expect(item).toMatchObject({ name: 'Tanpa nama', password: '', favorite: false, exactHost: false });
     expect(item).not.toHaveProperty('extra');
   });
 
@@ -120,5 +120,37 @@ describe('importing untrusted items', () => {
     const bad = await account('f@x.com', 'pw-f', [{ name: 'x' }]);
     bad.records[0].id = 'not-a-uuid';
     await expect(openBackup(parseBackup(fileOf(bad)), bad.key)).rejects.toMatchObject({ code: 'locked' });
+  });
+});
+
+describe('planImport', () => {
+  const item = (id, updatedAt, name = id) => ({ id, updatedAt, name });
+  const current = [item('a', 100), item('b', 100)];
+  const ids = (plan) => plan.changed.map((i) => i.id);
+
+  it('restores missing and older items of the same vault, keeping their ids', () => {
+    const plan = planImport([item('a', 50), item('b', 200), item('c', 10)], true, current);
+    expect(ids(plan)).toEqual(['b', 'c']);
+    expect(plan).toMatchObject({ added: 1, updated: 1, skipped: 1, olderKey: false });
+  });
+
+  it('adds every item of another vault under a new id', () => {
+    const plan = planImport([item('x', 1), item('y', 1)], false, current);
+    expect(plan).toMatchObject({ added: 2, updated: 0, skipped: 0, olderKey: false });
+    expect(ids(plan)).not.toContain('x');
+  });
+
+  it('for this vault from before its key was replaced, adds only missing items and overwrites nothing', () => {
+    // Newer timestamps in the file must not replace what is in the vault now.
+    const plan = planImport([item('a', 999, 'changed'), item('b', 999), item('gone', 1)], false, current);
+    expect(plan).toMatchObject({ added: 1, updated: 0, skipped: 2, olderKey: true });
+    expect(plan.changed).toEqual([expect.objectContaining({ name: 'gone' })]);
+    expect(ids(plan)).not.toContain('gone');
+  });
+
+  it('keeps exactHost from the file', async () => {
+    const acc = await account('g@x.com', 'pw-g', [{ name: 'x', exactHost: true }]);
+    const [restored] = (await openBackup(parseBackup(fileOf(acc)), acc.key)).items;
+    expect(restored.exactHost).toBe(true);
   });
 });

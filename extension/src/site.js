@@ -15,14 +15,17 @@ export function siteOf(url) {
   const host = u.hostname.replace(/^www\./, '');
   return {
     host,
+    port: u.port, // '' for the scheme's default port
     site: getDomain(u.hostname, { allowPrivateDomains: true }) ?? host,
     secure: u.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname),
   };
 }
 
 // An item may be offered on a page when both are on the same site, and an https item is never
-// offered on a plain-http page.
-export function itemMatches(itemUrl, page) {
+// offered on a plain-http page. Items marked `exactHost` also need the same host and port
+// (www. aside), e.g. for a shared domain where other subdomains belong to someone else.
+export function itemMatches(itemUrl, page, exactHost = false) {
   const item = siteOf(itemUrl);
-  return !!item && !!page && item.site === page.site && (page.secure || !item.secure);
+  if (!item || !page || item.site !== page.site || (!page.secure && item.secure)) return false;
+  return !exactHost || (item.host === page.host && item.port === page.port);
 }

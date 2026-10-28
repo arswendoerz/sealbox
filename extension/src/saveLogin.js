@@ -5,7 +5,7 @@ import { siteOf, itemMatches } from './site.js';
 export function decide(captured, items) {
   const page = siteOf(captured.url);
   if (!page || !captured.password) return null;
-  const forSite = items.filter((i) => itemMatches(i.url, page));
+  const forSite = items.filter((i) => itemMatches(i.url, page, i.exactHost));
   const user = captured.username.trim().toLowerCase();
   const sameUser = user ? forSite.filter((i) => (i.username ?? '').trim().toLowerCase() === user) : forSite;
   if (sameUser.some((i) => i.password === captured.password)) return null; // already saved
