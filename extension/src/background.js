@@ -5,11 +5,15 @@ import { unwrapVaultKey } from '../../src/crypto/keys.js';
 import { toBase64, fromBase64 } from '../../src/crypto/encoding.js';
 import { pull, decryptRecords } from '../../src/lib/vaultData.js';
 import { mfaPending, verifySecondFactor } from '../../src/lib/mfa.js';
-import { clearCache, getCache } from '../../src/lib/db.js';
+import { encryptJSON } from '../../src/crypto/aes.js';
+import { clearCache, getCache, setCache } from '../../src/lib/db.js';
 import { siteOf, itemMatches } from './site.js';
+import { decide, newItem } from './saveLogin.js';
 
 const AUTO_LOCK_MINUTES = 5;
 const CLIPBOARD_SECONDS = 30;
+const PENDING_MS = 3 * 60 * 1000; // how long a submitted login waits for "Simpan"
+const USERNAME_MS = 5 * 60 * 1000; // step 1 of a two-step login (email first, password next)
 
 // The service worker is stopped after ~30 s idle, so the vault key can't live in a variable.
 // storage.session is memory-only, gone when the browser closes, and hidden from content scripts.
@@ -138,6 +142,126 @@ async function fillActiveTab({ id }) {
   return {};
 }
 
+// ---- Saving logins ----
+// A submitted login waits in storage.session (memory only, hidden from content scripts) per tab
+// until the user answers the banner or the popup card.
+
+const pendingKey = (tabId) => `pending:${tabId}`;
+const userKey = (tabId) => `user:${tabId}`;
+
+async function sessionValue(key) {
+  return (await chrome.storage.session.get(key))[key];
+}
+
+async function putItem({ id, updatedAt: _, ...plain }) {
+  const key = await getKey();
+  if (!key) throw new Error('Vault terkunci.');
+  const s = await session();
+  const row = { id, user_id: s.user.id, updated_at: new Date().toISOString(), ...(await encryptJSON(plain, key)) };
+  const { error } = await supabase.from('vault_items').upsert(row);
+  if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
+  const cached = await getCache(s.user.id);
+  if (cached) await setCache(s.user.id, { ...cached, records: [...cached.records.filter((r) => r.id !== id), row] });
+}
+
+async function rememberUsername({ username }, sender) {
+  const page = pageOf(sender);
+  if (page && username?.trim()) await chrome.storage.session.set({ [userKey(sender.tab.id)]: { site: page.site, username: username.trim(), at: Date.now() } });
+  return {};
+}
+
+async function captured({ username = '', password }, sender) {
+  const page = pageOf(sender);
+  if (!page || !password) return {};
+  const { neverSave = [] } = await chrome.storage.local.get('neverSave');
+  if (neverSave.includes(page.site)) return {};
+  const tabId = sender.tab.id;
+  let user = username.trim();
+  const step1 = await sessionValue(userKey(tabId));
+  if (!user && step1?.site === page.site && Date.now() - step1.at < USERNAME_MS) user = step1.username;
+  await chrome.storage.session.set({ [pendingKey(tabId)]: { url: sender.url, username: user, password, at: Date.now() } });
+  // Single-page logins don't navigate: tell the top frame to ask once the page has settled.
+  setTimeout(() => chrome.tabs.sendMessage(tabId, { type: 'sealbox:offer-ready' }, { frameId: 0 }).catch(() => {}), 1500);
+  return {};
+}
+
+// What to show for a tab: {} (nothing), { offer: { locked, host } } or { offer: { kind, host, username } }.
+async function offerFor(tabId, tabUrl) {
+  const p = await sessionValue(pendingKey(tabId));
+  if (!p) return {};
+  if (Date.now() - p.at > PENDING_MS) {
+    await chrome.storage.session.remove(pendingKey(tabId));
+    return {};
+  }
+  const from = siteOf(p.url);
+  const page = siteOf(tabUrl);
+  if (!page || page.site !== from.site) return {}; // left the site (e.g. SSO): don't offer here
+  const items = await cachedItems();
+  if (!items) return { offer: { locked: true, host: from.host } };
+  const d = decide(p, items);
+  if (!d) {
+    await chrome.storage.session.remove(pendingKey(tabId));
+    return {};
+  }
+  return { offer: { kind: d.kind, host: from.host, username: p.username } };
+}
+
+// choice: 'save' (save or update), 'never' (this site) or 'dismiss'.
+async function respondFor(tabId, tabUrl, choice) {
+  const p = await sessionValue(pendingKey(tabId));
+  if (!p) return {};
+  const from = siteOf(p.url);
+  if (choice === 'never') {
+    const { neverSave = [] } = await chrome.storage.local.get('neverSave');
+    await chrome.storage.local.set({ neverSave: [...new Set([...neverSave, from.site])] });
+  }
+  if (choice !== 'save') {
+    await chrome.storage.session.remove(pendingKey(tabId));
+    return {};
+  }
+  const page = siteOf(tabUrl);
+  if (!page || page.site !== from.site) throw new Error('Halaman sudah berpindah ke situs lain.');
+  const items = await cachedItems();
+  if (!items) throw new Error('Vault terkunci.');
+  const d = decide(p, items);
+  if (d?.kind === 'update') await putItem({ ...d.item, password: p.password, passwordChangedAt: Date.now() });
+  else if (d?.kind === 'save') await putItem(newItem(p));
+  await chrome.storage.session.remove(pendingKey(tabId)); // kept until saved, so a failed save can be retried
+  touch();
+  return { saved: !!d };
+}
+
+const topFrameOnly = (sender) => {
+  if (sender.frameId !== 0) throw new Error('Hanya untuk frame utama.');
+};
+
+async function pendingOffer(_msg, sender) {
+  topFrameOnly(sender);
+  return offerFor(sender.tab.id, sender.tab.url);
+}
+
+async function respond({ choice }, sender) {
+  topFrameOnly(sender);
+  return respondFor(sender.tab.id, sender.tab.url, choice);
+}
+
+async function activeTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+async function pendingForActiveTab() {
+  const tab = await activeTab();
+  return tab?.url ? offerFor(tab.id, tab.url) : {};
+}
+
+async function respondForActiveTab({ choice }) {
+  const tab = await activeTab();
+  return respondFor(tab.id, tab.url, choice);
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.session.remove([pendingKey(tabId), userKey(tabId)]));
+
 async function openPopup() {
   await chrome.action.openPopup();
   return {};
@@ -164,8 +288,8 @@ async function clearClipboard() {
 }
 
 // Extension pages (popup) can do everything; content scripts (sender.tab set) only these.
-const popupHandlers = { state, open, items, lock, signOut, clearClipboardLater, fillActiveTab };
-const pageHandlers = { matches, fill, openPopup };
+const popupHandlers = { state, open, items, lock, signOut, clearClipboardLater, fillActiveTab, pendingForActiveTab, respondForActiveTab };
+const pageHandlers = { matches, fill, openPopup, captured, rememberUsername, pendingOffer, respond };
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;

@@ -96,8 +96,28 @@ function VaultList({ onLocked }) {
   const [message, setMessage] = useState('');
   const timer = useRef(null);
 
+  const [offer, setOffer] = useState(null); // a login submitted in this tab, waiting to be saved
+
+  const load = () => send('items').then((r) => { setItems(r.items); setOffline(r.offline); }, (err) => setError(err.message));
+
+  async function answer(choice) {
+    try {
+      await send('respondForActiveTab', { choice });
+      setOffer(null);
+      if (choice === 'save') {
+        setMessage('Login tersimpan di Sealbox');
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => setMessage(''), 2500);
+        load();
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   useEffect(() => {
-    send('items').then((r) => { setItems(r.items); setOffline(r.offline); }, (err) => setError(err.message));
+    load();
+    send('pendingForActiveTab').then((r) => setOffer(r.offer?.kind ? r.offer : null), () => {});
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => setPage(siteOf(tab?.url)));
     return () => clearTimeout(timer.current);
   }, []);
@@ -151,6 +171,17 @@ function VaultList({ onLocked }) {
         <button className="btn" onClick={lock} title="Kunci vault"><i className="ti ti-lock" /></button>
       </div>
       <div className="search"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari item…" autoFocus /></div>
+      {offer && (
+        <div className="card" style={{ margin: '0 12px 8px', padding: 12 }}>
+          <b>{offer.kind === 'update' ? 'Perbarui password?' : `Simpan login untuk ${offer.host}?`}</b>
+          <p className="hint" style={{ margin: '2px 0 10px', wordBreak: 'break-all' }}>{offer.username || '(tanpa username)'} · {offer.host}</p>
+          <div className="row" style={{ margin: 0 }}>
+            <button className="btn pri" onClick={() => answer('save')}>{offer.kind === 'update' ? 'Perbarui' : 'Simpan'}</button>
+            <button className="btn" onClick={() => answer('dismiss')}>Nanti</button>
+            {offer.kind === 'save' && <button className="link" style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--muted)' }} onClick={() => answer('never')}>Jangan untuk situs ini</button>}
+          </div>
+        </div>
+      )}
       {offline && <div className="note warn" style={{ margin: '0 12px 6px' }}><i className="ti ti-cloud-off" />Offline: data dari cache</div>}
       {error && <p className="err" style={{ padding: '0 14px' }}>{error}</p>}
       {items === null && !error && <p className="sub" style={{ padding: 14 }}>Memuat…</p>}

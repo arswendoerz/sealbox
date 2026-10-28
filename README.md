@@ -46,6 +46,8 @@ Buka `chrome://extensions`, nyalakan **Developer mode**, klik **Load unpacked**,
 
 Autofill: ikon Sealbox muncul di kolom login; isi hanya setelah diklik. Login ditawarkan hanya untuk situs yang sama menurut *public suffix list* (`tldts`), item https tidak ditawarkan di halaman http, dan iframe dari situs lain tidak diisi.
 
+Simpan login: setelah login atau daftar, banner menawarkan "Simpan" atau "Perbarui". Login yang menunggu disimpan di `chrome.storage.session` paling lama 3 menit dan hanya ditawarkan di situs yang sama. Jika vault terkunci, tawaran muncul di popup setelah vault dibuka.
+
 ## Desain kriptografi
 
 ```
@@ -82,7 +84,7 @@ mockup/          # mockup HTML semua layar
 2. ✅ Sinkronisasi Supabase dan deploy ke Cloudflare Pages
 3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
 4. ✅ Kesehatan password dan generator pintar
-5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin), ✅ M2 autofill; berikutnya simpan login, generator di halaman
+5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin), ✅ M2 autofill, ✅ M3 simpan login; berikutnya generator di halaman
 
 ## Kredit
 

@@ -25,8 +25,8 @@
   }
 
   // Username + password fields around `anchor` (the focused field), or anywhere on the page.
-  function fieldsFor(anchor) {
-    const scope = anchor?.form ?? document;
+  function fieldsFor(anchor, within) {
+    const scope = within ?? anchor?.form ?? document;
     const inputs = [...scope.querySelectorAll('input')].filter((i) => usable(i) && visible(i));
     const pw = anchor?.type === 'password' ? anchor : inputs.find((i) => i.type === 'password') ?? null;
     const texty = inputs.filter((i) => TEXTY.includes(i.type));
@@ -76,14 +76,24 @@
       .row small{color:#6B6A80;font-size:12px}
       .msg{padding:8px 10px;color:#6B6A80}
       .open{margin:2px 10px 8px;border:0;border-radius:7px;padding:7px 10px;background:linear-gradient(135deg,#4338CA,#7C3AED);color:#fff;cursor:pointer}
-      @media (prefers-color-scheme:dark){.menu{background:#1C1B2E;color:#ECEBFA;border-color:#33314D}.row:hover,.row:focus{background:#2E2A5C}.row small,.msg,.head{color:#A3A1BD}}
+      .banner{position:fixed;top:12px;right:12px;width:320px;background:#fff;color:#1E1B4B;border:1px solid #E4E3EE;border-radius:12px;box-shadow:0 12px 32px -8px rgba(30,27,75,.35);padding:14px;display:none}
+      .banner b{display:block;margin-bottom:2px}
+      .banner .who{color:#6B6A80;font-size:12px;margin-bottom:12px;word-break:break-all}
+      .banner .acts{display:flex;gap:6px;align-items:center}
+      .banner .open{margin:0}
+      .banner .later{border:1px solid #E4E3EE;border-radius:7px;padding:7px 10px;background:none;color:inherit;cursor:pointer}
+      .banner .never{margin-left:auto;border:0;background:none;color:#6B6A80;cursor:pointer;font-size:12px;text-decoration:underline}
+      .banner .err{color:#A32D2D;font-size:12px;margin-top:8px}
+      @media (prefers-color-scheme:dark){.menu,.banner{background:#1C1B2E;color:#ECEBFA;border-color:#33314D}.row:hover,.row:focus{background:#2E2A5C}.row small,.msg,.head,.banner .who,.banner .never{color:#A3A1BD}.banner .later{border-color:#33314D}}
     </style>
     <button class="icon" title="Isi dengan Sealbox" aria-label="Isi dengan Sealbox">
       <svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#534AB7"/><rect x="5" y="7" width="14" height="3" rx="1" fill="#EEEDFE"/><rect x="6" y="10" width="12" height="8" rx="1.5" fill="#fff"/><circle cx="12" cy="10" r="3.2" fill="#F59E0B"/><circle cx="12" cy="9.6" r="1" fill="#3C3489"/></svg>
     </button>
-    <div class="menu" role="listbox"></div>`;
+    <div class="menu" role="listbox"></div>
+    <div class="banner" role="dialog" aria-label="Sealbox"></div>`;
   const icon = root.querySelector('.icon');
   const menu = root.querySelector('.menu');
+  const banner = root.querySelector('.banner');
   let field = null; // the login field the UI is attached to
   let menuOpen = false;
 
@@ -200,11 +210,127 @@
   addEventListener('scroll', () => field && place(), true);
   addEventListener('resize', () => field && place());
 
-  // Fill requested from the popup (top frame only; the background checked the site).
+  // ---- Saving logins: capture on submit, offer in a banner (top frame) ----
+
+  const SUBMIT_TEXT = /masuk|login|log in|sign in|signin|daftar|sign up|register|lanjut|continue|next|submit|kirim|simpan|save|update|ubah|ganti/i;
+
+  function capture(scope) {
+    const pws = [...scope.querySelectorAll('input[type=password]')].filter((i) => i.value);
+    if (!pws.length) {
+      // Step 1 of a two-step login: remember the username for the password page.
+      const u = [...scope.querySelectorAll('input')].find((i) => i.value && TEXTY.includes(i.type) && (i.type === 'email' || /username|email/i.test(i.autocomplete)));
+      if (u) ask('rememberUsername', { username: u.value }).catch(() => {});
+      return;
+    }
+    // Sign-up / change-password forms: the new password is marked, or typed twice.
+    const values = pws.map((i) => i.value);
+    const repeated = values.find((v, n) => values.indexOf(v) !== n);
+    const pw = pws.find((i) => /new-password/i.test(i.autocomplete)) ?? pws.find((i) => i.value === repeated) ?? pws[0];
+    const { user } = fieldsFor(pws[0], scope);
+    ask('captured', { username: user?.value ?? '', password: pw.value }).catch(() => {});
+  }
+
+  // The form around `el`, or for form-less (single-page) logins the nearest container holding a
+  // password field and a username field, so other forms on the page aren't mixed in.
+  function scopeOf(el) {
+    const form = el?.closest?.('form');
+    if (form) return form;
+    let withPassword = null;
+    for (let n = el?.parentElement; n; n = n.parentElement) {
+      if (!n.querySelector('input[type=password]')) continue;
+      withPassword ??= n;
+      if (n.querySelector('input[type=text], input[type=email], input[type=tel], input:not([type])')) return n;
+    }
+    return withPassword ?? document;
+  }
+
+  document.addEventListener('submit', (e) => capture(e.target), true);
+  document.addEventListener('keydown', (e) => {
+    const el = e.composedPath()[0];
+    if (e.key === 'Enter' && el instanceof HTMLInputElement && (el.type === 'password' || eligible(el))) capture(scopeOf(el));
+  }, true);
+  document.addEventListener('click', (e) => {
+    const btn = e.composedPath()[0]?.closest?.('button, input[type=submit], input[type=button], [role=button]');
+    if (!btn || e.composedPath().includes(host)) return;
+    const label = `${btn.textContent} ${btn.value ?? ''} ${btn.getAttribute('aria-label') ?? ''}`;
+    if (btn.type === 'submit' || SUBMIT_TEXT.test(label)) capture(scopeOf(btn));
+  }, true);
+
+  function button(cls, text, onClick) {
+    const b = document.createElement('button');
+    b.className = cls;
+    b.textContent = text;
+    b.addEventListener('click', (e) => { if (e.isTrusted) onClick(b); }); // pages can't answer for the user
+    return b;
+  }
+
+  function hideBanner() {
+    banner.style.display = 'none';
+    banner.replaceChildren();
+  }
+
+  async function answer(choice, b) {
+    b.disabled = true;
+    try {
+      const r = await ask('respond', { choice });
+      if (choice === 'save' && r.saved) {
+        banner.replaceChildren(line('', 'Tersimpan di Sealbox.'));
+        setTimeout(hideBanner, 2000);
+      } else hideBanner();
+    } catch (err) {
+      b.disabled = false;
+      banner.querySelector('.err')?.remove();
+      banner.append(line('err', err.message));
+    }
+  }
+
+  async function offerSave() {
+    if (window.top !== window) return; // the banner lives in the top frame only
+    let r;
+    try {
+      r = await ask('pendingOffer');
+    } catch {
+      return;
+    }
+    const o = r.offer;
+    if (!o) return;
+    if (!host.isConnected) document.documentElement.append(host);
+    const title = document.createElement('b');
+    const acts = document.createElement('div');
+    acts.className = 'acts';
+    if (o.locked) {
+      title.textContent = `Simpan login untuk ${o.host}?`;
+      acts.append(
+        button('open', 'Buka Sealbox', () => ask('openPopup').catch(() => {
+          banner.querySelector('.err')?.remove();
+          banner.append(line('err', 'Klik ikon Sealbox di toolbar, lalu simpan dari sana.'));
+        })),
+        button('later', 'Nanti', (b) => answer('dismiss', b)),
+      );
+      banner.replaceChildren(title, line('who', 'Vault terkunci. Buka Sealbox untuk menyimpannya.'), acts);
+    } else {
+      title.textContent = o.kind === 'update' ? `Perbarui password di Sealbox?` : `Simpan login untuk ${o.host}?`;
+      acts.append(
+        button('open', o.kind === 'update' ? 'Perbarui' : 'Simpan', (b) => answer('save', b)),
+        button('later', 'Nanti', (b) => answer('dismiss', b)),
+      );
+      if (o.kind === 'save') acts.append(button('never', 'Jangan untuk situs ini', (b) => answer('never', b)));
+      banner.replaceChildren(title, line('who', `${o.username || '(tanpa username)'} · ${o.host}`), acts);
+    }
+    banner.style.display = 'block';
+  }
+
+  offerSave(); // after a login form navigated here
+
   chrome.runtime.onMessage.addListener((msg, sender, reply) => {
-    if (sender.id !== chrome.runtime.id || sender.tab || msg?.type !== 'sealbox:fill') return false;
-    const anchor = eligible(document.activeElement) ? document.activeElement : null;
-    reply({ ok: fillFields(anchor, msg) });
+    if (sender.id !== chrome.runtime.id || sender.tab) return false;
+    // Fill requested from the popup (top frame only; the background checked the site).
+    if (msg?.type === 'sealbox:fill') {
+      const anchor = eligible(document.activeElement) ? document.activeElement : null;
+      reply({ ok: fillFields(anchor, msg) });
+    }
+    // A single-page login was submitted without navigating.
+    if (msg?.type === 'sealbox:offer-ready') offerSave();
     return false;
   });
 })();
