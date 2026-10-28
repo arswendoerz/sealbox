@@ -10,6 +10,15 @@
 
   const usable = (el) => el instanceof HTMLInputElement && !el.disabled && !el.readOnly;
 
+  // A "show password" button turns the field into type=text, so remember fields that were ever
+  // password fields (and trust autocomplete hints) instead of only checking the current type.
+  const seenPassword = new WeakSet();
+  const markPasswords = (root = document) => root.querySelectorAll('input[type=password]').forEach((i) => seenPassword.add(i));
+  const isPasswordField = (el) => el instanceof HTMLInputElement
+    && (el.type === 'password' || seenPassword.has(el) || /current-password|new-password/i.test(el.autocomplete));
+  const passwordFieldsIn = (scope) => [...scope.querySelectorAll('input')].filter(isPasswordField);
+  const isUsernameField = (el) => TEXTY.includes(el.type) && !isPasswordField(el);
+
   function visible(el) {
     const r = el.getBoundingClientRect();
     return r.width > 20 && r.height > 10 && getComputedStyle(el).visibility !== 'hidden';
@@ -17,21 +26,20 @@
 
   function eligible(el) {
     if (!usable(el)) return false;
-    if (el.type === 'password') return true;
-    if (!TEXTY.includes(el.type)) return false;
+    if (isPasswordField(el)) return true;
+    if (!isUsernameField(el)) return false;
     if (/username|email/i.test(el.autocomplete) || el.type === 'email') return true;
-    const scope = el.form ?? document;
-    return !!scope.querySelector('input[type=password]') && USERNAME_HINT.test(`${el.name} ${el.id} ${el.placeholder}`);
+    return passwordFieldsIn(el.form ?? document).length > 0 && USERNAME_HINT.test(`${el.name} ${el.id} ${el.placeholder}`);
   }
 
   // Username + password fields around `anchor` (the focused field), or anywhere on the page.
   function fieldsFor(anchor, within) {
     const scope = within ?? anchor?.form ?? document;
     const inputs = [...scope.querySelectorAll('input')].filter((i) => usable(i) && visible(i));
-    const pw = anchor?.type === 'password' ? anchor : inputs.find((i) => i.type === 'password') ?? null;
-    const texty = inputs.filter((i) => TEXTY.includes(i.type));
+    const pw = isPasswordField(anchor) ? anchor : inputs.find(isPasswordField) ?? null;
+    const texty = inputs.filter(isUsernameField);
     let user = null;
-    if (anchor && anchor.type !== 'password') user = anchor;
+    if (anchor && !isPasswordField(anchor)) user = anchor;
     else if (pw) user = texty.filter((i) => i.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() ?? null;
     else user = texty.find((i) => /username|email/i.test(i.autocomplete) || i.type === 'email') ?? null;
     return { user, pw };
@@ -190,6 +198,7 @@
 
   document.addEventListener('focusin', (e) => {
     const el = e.composedPath()[0];
+    if (el?.type === 'password') seenPassword.add(el);
     if (eligible(el) && visible(el)) show(el);
   }, true);
 
@@ -215,10 +224,10 @@
   const SUBMIT_TEXT = /masuk|login|log in|sign in|signin|daftar|sign up|register|lanjut|continue|next|submit|kirim|simpan|save|update|ubah|ganti/i;
 
   function capture(scope) {
-    const pws = [...scope.querySelectorAll('input[type=password]')].filter((i) => i.value);
+    const pws = passwordFieldsIn(scope).filter((i) => i.value);
     if (!pws.length) {
       // Step 1 of a two-step login: remember the username for the password page.
-      const u = [...scope.querySelectorAll('input')].find((i) => i.value && TEXTY.includes(i.type) && (i.type === 'email' || /username|email/i.test(i.autocomplete)));
+      const u = [...scope.querySelectorAll('input')].find((i) => i.value && isUsernameField(i) && (i.type === 'email' || /username|email/i.test(i.autocomplete)));
       if (u) ask('rememberUsername', { username: u.value }).catch(() => {});
       return;
     }
@@ -237,19 +246,22 @@
     if (form) return form;
     let withPassword = null;
     for (let n = el?.parentElement; n; n = n.parentElement) {
-      if (!n.querySelector('input[type=password]')) continue;
+      if (!passwordFieldsIn(n).length) continue;
       withPassword ??= n;
-      if (n.querySelector('input[type=text], input[type=email], input[type=tel], input:not([type])')) return n;
+      if ([...n.querySelectorAll('input')].some(isUsernameField)) return n;
     }
     return withPassword ?? document;
   }
 
+  markPasswords();
+  document.addEventListener('input', (e) => { if (e.target?.type === 'password') seenPassword.add(e.target); }, true);
   document.addEventListener('submit', (e) => capture(e.target), true);
   document.addEventListener('keydown', (e) => {
     const el = e.composedPath()[0];
-    if (e.key === 'Enter' && el instanceof HTMLInputElement && (el.type === 'password' || eligible(el))) capture(scopeOf(el));
+    if (e.key === 'Enter' && el instanceof HTMLInputElement && eligible(el)) capture(scopeOf(el));
   }, true);
   document.addEventListener('click', (e) => {
+    markPasswords(); // before the page's own handler can flip a field to type=text
     const btn = e.composedPath()[0]?.closest?.('button, input[type=submit], input[type=button], [role=button]');
     if (!btn || e.composedPath().includes(host)) return;
     const label = `${btn.textContent} ${btn.value ?? ''} ${btn.getAttribute('aria-label') ?? ''}`;
