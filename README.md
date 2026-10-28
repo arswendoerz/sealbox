@@ -28,6 +28,15 @@ npm install
 npm run dev
 ```
 
+### Tes
+
+```bash
+npm test             # sekali jalan
+npm run test:watch   # jalan ulang setiap ada perubahan
+```
+
+Tes unit (Vitest) ada di [`test/`](test): kriptografi, backup, rotasi kunci vault, aturan password, generator, cek kebocoran, dan pencocokan situs di ekstensi. Supabase dan HIBP selalu di-*mock*, jadi tes tidak menyentuh project sungguhan. GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) menjalankan tes dan kedua build di setiap push ke `main` dan setiap pull request.
+
 ### Menyiapkan Supabase
 
 1. Jalankan [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), lalu [`0002_mfa.sql`](supabase/migrations/0002_mfa.sql), [`0003_protect_vault.sql`](supabase/migrations/0003_protect_vault.sql) dan [`0004_key_rotation.sql`](supabase/migrations/0004_key_rotation.sql), di **SQL Editor**.
@@ -80,6 +89,7 @@ src/
 └── pages/       # Login, Register, Unlock, Recover, Vault
 extension/       # ekstensi browser (MV3): popup, background, offscreen
 supabase/        # skema database dan RLS
+test/            # tes unit (Vitest)
 mockup/          # mockup HTML semua layar
 ```
 
