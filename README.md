@@ -30,7 +30,7 @@ npm run dev
 
 ### Menyiapkan Supabase
 
-1. Jalankan [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), lalu [`0002_mfa.sql`](supabase/migrations/0002_mfa.sql) , [`0003_protect_vault.sql`](supabase/migrations/0003_protect_vault.sql) dan [`0004_key_rotation.sql`](supabase/migrations/0004_key_rotation.sql), di **SQL Editor**.
+1. Jalankan [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), lalu [`0002_mfa.sql`](supabase/migrations/0002_mfa.sql), [`0003_protect_vault.sql`](supabase/migrations/0003_protect_vault.sql) dan [`0004_key_rotation.sql`](supabase/migrations/0004_key_rotation.sql), di **SQL Editor**.
 2. **Authentication → URL Configuration**: isi *Site URL* dan *Redirect URLs* dengan alamat aplikasi (`http://localhost:5173` dan URL produksi).
 
 ### Deploy ke Cloudflare Pages

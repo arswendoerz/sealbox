@@ -351,6 +351,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 // Lock as soon as the computer's screen locks, not only after 5 idle minutes.
-chrome.idle.onStateChanged.addListener((s) => {
+// chrome.idle is missing until Chrome grants the "idle" permission; never crash the worker over it.
+chrome.idle?.onStateChanged.addListener((s) => {
   if (s === 'locked') lock();
 });
