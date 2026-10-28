@@ -8,6 +8,7 @@ import * as db from '../lib/db.js';
 import { makeBackup, openBackup } from '../lib/backup.js';
 import { mfaPending, verifySecondFactor } from '../lib/mfa.js';
 import { byName, pull, decryptRecords } from '../lib/vaultData.js';
+import { clearClipboard } from '../hooks/useClipboard.js';
 
 const VaultContext = createContext(null);
 export const useVault = () => useContext(VaultContext);
@@ -188,6 +189,7 @@ export function VaultProvider({ children }) {
 
   const lock = useCallback(() => {
     keyRef.current = null;
+    clearClipboard();
     setItems([]);
     setStatus((s) => (s === 'unlocked' ? 'locked' : s));
   }, []);
@@ -195,6 +197,7 @@ export function VaultProvider({ children }) {
   const signOut = useCallback(async () => {
     keyRef.current = null;
     mfaRef.current = null;
+    clearClipboard();
     await db.clearCache();
     await supabase.auth.signOut();
   }, []);
@@ -253,6 +256,28 @@ export function VaultProvider({ children }) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, [updateCache]);
 
+  // Previous versions of items (kept 30 days by the database on every change or delete).
+  const loadHistory = useCallback(async () => {
+    if (offline) throw new Error('Riwayat butuh koneksi internet.');
+    const { data, error } = await supabase.from('vault_item_versions')
+      .select('version_id, item_id, iv, data, item_updated_at, change, saved_at')
+      .order('saved_at', { ascending: false }).limit(300);
+    if (error) throw new Error(/does not exist|schema cache/i.test(error.message)
+      ? 'Riwayat belum aktif: jalankan supabase/migrations/0003_protect_vault.sql di Supabase.' : error.message);
+    return Promise.all(data.map(async (v) => {
+      try {
+        return { ...v, item: await decryptJSON(v, keyRef.current) };
+      } catch {
+        return { ...v, item: null }; // not encrypted with this vault key (tampered)
+      }
+    }));
+  }, [offline]);
+
+  const restoreVersion = useCallback(async (version) => {
+    if (!version.item) throw new Error('Versi ini tidak bisa dibuka.');
+    return saveItem({ ...version.item, id: version.item_id });
+  }, [saveItem]);
+
   const exportBackup = useCallback(async () => {
     const { profile, records } = await pull(user.id);
     return makeBackup(user.email, profile, records);
@@ -304,7 +329,7 @@ export function VaultProvider({ children }) {
   const value = {
     status, user, items, offline, hasLegacy,
     register, login, unlock, completeMfa, lock, signOut, requestRecovery, completeRecovery, saveItem, deleteItem, discardLegacy,
-    exportBackup, importBackup,
+    exportBackup, importBackup, loadHistory, restoreVersion,
   };
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;
 }

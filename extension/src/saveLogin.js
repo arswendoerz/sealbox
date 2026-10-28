@@ -10,9 +10,9 @@ export function decide(captured, items) {
   const sameUser = user ? forSite.filter((i) => (i.username ?? '').trim().toLowerCase() === user) : forSite;
   if (sameUser.some((i) => i.password === captured.password)) return null; // already saved
   if (user) return sameUser.length ? { kind: 'update', item: sameUser[0] } : { kind: 'save' };
-  // No username (e.g. a change-password form): only safe when the site has at most one login.
-  if (forSite.length === 0) return { kind: 'save' };
-  return forSite.length === 1 ? { kind: 'update', item: forSite[0] } : null;
+  // Without a username we can't tell which login changed, so never overwrite one: save only when
+  // the site has no login yet (the user can still edit the right item by hand).
+  return forSite.length === 0 ? { kind: 'save' } : null;
 }
 
 export function newItem({ url, username, password }, now = Date.now()) {

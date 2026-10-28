@@ -32,8 +32,10 @@ async function setKey(key) {
 
 const touch = () => chrome.alarms.create('autolock', { delayInMinutes: AUTO_LOCK_MINUTES });
 
+// Locking also drops logins waiting to be saved: they hold plaintext passwords.
 async function lock() {
-  await chrome.storage.session.remove('vaultKey');
+  const all = await chrome.storage.session.get(null);
+  await chrome.storage.session.remove(['vaultKey', ...Object.keys(all).filter((k) => /^(pending|user):/.test(k))]);
   await chrome.alarms.clear('autolock');
   return {};
 }
@@ -149,6 +151,11 @@ async function fillActiveTab({ id }) {
 // A submitted login waits in storage.session (memory only, hidden from content scripts) per tab
 // until the user answers the banner or the popup card.
 
+// Pages choose these strings; capping them keeps a page from filling storage.session (10 MB),
+// which would make unlocking fail.
+const MAX_FIELD = 1024;
+const capped = (s) => String(s ?? '').slice(0, MAX_FIELD);
+
 const pendingKey = (tabId) => `pending:${tabId}`;
 const userKey = (tabId) => `user:${tabId}`;
 
@@ -167,14 +174,17 @@ async function putItem({ id, updatedAt: _, ...plain }) {
   if (cached) await setCache(s.user.id, { ...cached, records: [...cached.records.filter((r) => r.id !== id), row] });
 }
 
-async function rememberUsername({ username }, sender) {
+async function rememberUsername(msg, sender) {
   const page = pageOf(sender);
-  if (page && username?.trim()) await chrome.storage.session.set({ [userKey(sender.tab.id)]: { site: page.site, username: username.trim(), at: Date.now() } });
+  const username = capped(msg.username).trim();
+  if (page && username) await chrome.storage.session.set({ [userKey(sender.tab.id)]: { site: page.site, username, at: Date.now() } });
   return {};
 }
 
-async function captured({ username = '', password }, sender) {
+async function captured(msg, sender) {
   const page = pageOf(sender);
+  const username = capped(msg.username);
+  const password = capped(msg.password);
   if (!page || !password) return {};
   const { neverSave = [] } = await chrome.storage.local.get('neverSave');
   if (neverSave.includes(page.site)) return {};
@@ -206,13 +216,14 @@ async function offerFor(tabId, tabUrl) {
     await chrome.storage.session.remove(pendingKey(tabId));
     return {};
   }
-  return { offer: { kind: d.kind, host: from.host, username: p.username, generated: !!p.generated } };
+  return { offer: { kind: d.kind, host: from.host, username: p.username, generated: !!p.generated, itemName: d.item?.name } };
 }
 
 // A strong password for a sign-up / change-password field, following the site's known rules.
 // It is kept as a pending login right away, so it can still be saved from the popup if the
 // form's submit isn't detected (the site may already have accepted it).
-async function generate({ username = '' }, sender) {
+async function generate(msg, sender) {
+  const username = capped(msg.username);
   const page = pageOf(sender);
   if (!page) throw new Error('Generator tidak tersedia di frame ini.');
   const known = rulesForHost(page.host, ruleDb);

@@ -31,12 +31,28 @@ export function parseBackup(text) {
     throw new Error('File ini bukan backup Sealbox.');
   }
   if (b.version !== VERSION) throw new Error('Versi backup ini belum didukung.');
+  // A crafted file could otherwise ask for billions of PBKDF2 rounds and hang the tab.
+  const iterations = b.kdf?.iterations;
+  if (!Number.isInteger(iterations) || iterations < 100_000 || iterations > 10_000_000) throw new Error('Pengaturan kunci di backup ini tidak valid.');
   return b;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TEXT_FIELDS = ['name', 'url', 'username', 'password', 'folder', 'notes', 'rules'];
+
+// Keeps only known fields with the right types, so an imported item can't break the vault UI.
+function cleanItem(raw, id, updatedAt) {
+  if (!UUID.test(id) || typeof raw !== 'object' || raw === null) throw new Error('bad item');
+  const item = { id, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(), favorite: raw.favorite === true };
+  for (const f of TEXT_FIELDS) item[f] = typeof raw[f] === 'string' ? raw[f] : '';
+  if (!item.name.trim()) item.name = item.url || 'Tanpa nama';
+  if (Number.isFinite(raw.passwordChangedAt)) item.passwordChangedAt = raw.passwordChangedAt;
+  return item;
 }
 
 async function decryptAll(items, key) {
   try {
-    return await Promise.all(items.map(async (r) => ({ ...(await decryptJSON(r, key)), id: r.id, updatedAt: Date.parse(r.updatedAt) })));
+    return await Promise.all(items.map(async (r) => cleanItem(await decryptJSON(r, key), r.id, Date.parse(r.updatedAt))));
   } catch {
     return null;
   }

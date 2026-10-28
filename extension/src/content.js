@@ -19,9 +19,15 @@
   const passwordFieldsIn = (scope) => [...scope.querySelectorAll('input')].filter(isPasswordField);
   const isUsernameField = (el) => TEXTY.includes(el.type) && !isPasswordField(el);
 
+  // A field the user can actually see: on screen, not hidden, and not faded out by itself or an
+  // ancestor (a page could otherwise collect a fill in a transparent field).
   function visible(el) {
     const r = el.getBoundingClientRect();
-    return r.width > 20 && r.height > 10 && getComputedStyle(el).visibility !== 'hidden';
+    if (r.width <= 20 || r.height <= 10 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) return false;
+    if (el.checkVisibility && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
+    let opacity = 1;
+    for (let n = el; n && n.nodeType === 1 && opacity >= 0.5; n = n.parentElement) opacity *= Number(getComputedStyle(n).opacity);
+    return opacity >= 0.5 && getComputedStyle(el).visibility !== 'hidden';
   }
 
   function eligible(el) {
@@ -71,7 +77,11 @@
 
   // The prototype setter + input/change events also update React/Vue-controlled inputs.
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+  // Fields the user typed into (trusted input) or Sealbox filled; only their passwords are captured.
+  const userEdited = new WeakSet();
+
   function setValue(el, value) {
+    userEdited.add(el);
     el.focus();
     setter.call(el, value);
     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -91,9 +101,16 @@
     return r;
   }
 
-  // ---- UI: one closed shadow root, so the page can't style or read it ----
+  // ---- UI: one closed shadow root, so the page can't read it ----
+  // Inline !important beats any page stylesheet, so the page can't make the UI invisible
+  // (opacity, filter, clip...) while the user unknowingly clicks it.
   const host = document.createElement('sealbox-ui');
-  host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;top:0;left:0;width:0;height:0';
+  const HOST_STYLE = {
+    all: 'initial', display: 'block', position: 'fixed', 'z-index': '2147483647', top: '0', left: '0', width: '0', height: '0',
+    opacity: '1', visibility: 'visible', filter: 'none', transform: 'none', 'clip-path': 'none', mask: 'none', 'pointer-events': 'auto',
+  };
+  const styleHost = () => Object.entries(HOST_STYLE).forEach(([k, v]) => host.style.setProperty(k, v, 'important'));
+  styleHost();
   const root = host.attachShadow({ mode: 'closed' });
   root.innerHTML = `
     <style>
@@ -129,6 +146,30 @@
   let field = null; // the login field the UI is attached to
   let menuOpen = false;
 
+  // Clickjacking guard. IntersectionObserver v2 reports whether an element is really visible:
+  // not covered by anything (even pointer-events:none overlays), not transparent or filtered.
+  // A click on the menu or banner counts only if it was visible and has been shown long enough
+  // for the user to have seen it (no "click here twice" tricks).
+  const MIN_SHOWN_MS = 500;
+  const shownAt = new WeakMap();
+  const seenVisible = new WeakMap();
+  const canCheckVisibility = 'IntersectionObserver' in window && 'isVisible' in IntersectionObserverEntry.prototype;
+  const visibilityObserver = canCheckVisibility
+    ? new IntersectionObserver((entries) => entries.forEach((e) => seenVisible.set(e.target, e.isVisible)), { trackVisibility: true, delay: 100 })
+    : null;
+  [icon, menu, banner].forEach((el) => visibilityObserver?.observe(el));
+
+  // Hidden elements report isVisible=false, so the flag is fresh again once they reappear.
+  const markShown = (el) => shownAt.set(el, Date.now());
+
+  // Returns an error message, or '' when the click may proceed.
+  function clickProblem(e, el) {
+    if (!e.isTrusted) return 'ignored';
+    if (Date.now() - (shownAt.get(el) ?? 0) < MIN_SHOWN_MS) return 'ignored';
+    if (canCheckVisibility && !seenVisible.get(el)) return 'Menu Sealbox tertutup atau disamarkan oleh halaman ini. Gunakan popup Sealbox di toolbar.';
+    return '';
+  }
+
   function place() {
     if (!field?.isConnected) return hide();
     const r = field.getBoundingClientRect();
@@ -138,9 +179,15 @@
     menu.style.top = `${r.bottom + 4}px`;
   }
 
+  // Re-attach as the last child of <html> and re-assert styles each time the UI appears.
+  function mount() {
+    if (host.parentNode !== document.documentElement || host.nextSibling) document.documentElement.append(host);
+    styleHost();
+  }
+
   function show(el) {
     field = el;
-    if (!host.isConnected) document.documentElement.append(host);
+    mount();
     place();
     icon.style.display = 'block';
   }
@@ -166,8 +213,10 @@
 
   async function openMenu() {
     menuOpen = true;
+    mount();
     menu.replaceChildren(line('head', 'Sealbox'), line('msg', 'Memuat…'));
     menu.style.display = 'block';
+    markShown(menu);
     place();
     let r;
     try {
@@ -183,7 +232,8 @@
       gen.className = 'row';
       gen.append(line('', '✨ Buat password kuat'), Object.assign(document.createElement('small'), { textContent: 'Diisi ke kolom password dan konfirmasinya' }));
       gen.addEventListener('click', async (e) => {
-        if (!e.isTrusted) return;
+        const problem = clickProblem(e, menu);
+        if (problem) return problem !== 'ignored' && menu.replaceChildren(line('head', 'Sealbox'), line('msg', problem));
         const target = field;
         try {
           const username = fieldsFor(target, scopeOf(target)).user?.value ?? '';
@@ -217,8 +267,11 @@
         btn.setAttribute('role', 'option');
         btn.append(line('', item.name), Object.assign(document.createElement('small'), { textContent: item.username || '—' }));
         btn.addEventListener('click', async (e) => {
-          if (!e.isTrusted) return; // a page script can't trigger a fill
+          // Only a real click on a menu the user could see triggers a fill.
+          const problem = clickProblem(e, menu);
+          if (problem) return problem !== 'ignored' && menu.replaceChildren(line('head', 'Sealbox'), line('msg', problem));
           const target = field;
+          if (!target || !visible(target)) return closeMenu();
           closeMenu();
           try {
             fillFields(target, await ask('fill', { id: item.id }));
@@ -231,6 +284,7 @@
       }
     }
     menu.replaceChildren(...parts);
+    markShown(menu); // the choices only appear now
   }
 
   // Keep focus on the field when the button is pressed.
@@ -268,8 +322,10 @@
 
   const SUBMIT_TEXT = /masuk|login|log in|sign in|signin|daftar|sign up|register|lanjut|continue|next|submit|kirim|simpan|save|update|ubah|ganti/i;
 
+  // Called only for trusted events. A password the page put there by script is ignored, so a page
+  // can't plant credentials for the "save / update" offer.
   function capture(scope) {
-    const pws = passwordFieldsIn(scope).filter((i) => i.value);
+    const pws = passwordFieldsIn(scope).filter((i) => i.value && userEdited.has(i));
     if (!pws.length) {
       // Step 1 of a two-step login: remember the username for the password page.
       const u = [...scope.querySelectorAll('input')].find((i) => i.value && isUsernameField(i) && (i.type === 'email' || /username|email/i.test(i.autocomplete)));
@@ -299,14 +355,19 @@
   }
 
   markPasswords();
-  document.addEventListener('input', (e) => { if (e.target?.type === 'password') seenPassword.add(e.target); }, true);
-  document.addEventListener('submit', (e) => capture(e.target), true);
+  document.addEventListener('input', (e) => {
+    const el = e.composedPath()[0];
+    if (el?.type === 'password') seenPassword.add(el);
+    if (e.isTrusted && el instanceof HTMLInputElement) userEdited.add(el);
+  }, true);
+  document.addEventListener('submit', (e) => { if (e.isTrusted) capture(e.target); }, true);
   document.addEventListener('keydown', (e) => {
     const el = e.composedPath()[0];
-    if (e.key === 'Enter' && el instanceof HTMLInputElement && eligible(el)) capture(scopeOf(el));
+    if (e.isTrusted && e.key === 'Enter' && el instanceof HTMLInputElement && eligible(el)) capture(scopeOf(el));
   }, true);
   document.addEventListener('click', (e) => {
     markPasswords(); // before the page's own handler can flip a field to type=text
+    if (!e.isTrusted) return;
     const btn = e.composedPath()[0]?.closest?.('button, input[type=submit], input[type=button], [role=button]');
     if (!btn || e.composedPath().includes(host)) return;
     const label = `${btn.textContent} ${btn.value ?? ''} ${btn.getAttribute('aria-label') ?? ''}`;
@@ -317,7 +378,15 @@
     const b = document.createElement('button');
     b.className = cls;
     b.textContent = text;
-    b.addEventListener('click', (e) => { if (e.isTrusted) onClick(b); }); // pages can't answer for the user
+    b.addEventListener('click', (e) => {
+      // Pages can't answer for the user, nor trick them into clicking a hidden banner.
+      const problem = clickProblem(e, banner);
+      if (!problem) return onClick(b);
+      if (problem !== 'ignored') {
+        banner.querySelector('.err')?.remove();
+        banner.append(line('err', problem));
+      }
+    });
     return b;
   }
 
@@ -351,7 +420,7 @@
     }
     const o = r.offer;
     if (!o) return;
-    if (!host.isConnected) document.documentElement.append(host);
+    mount();
     const title = document.createElement('b');
     const acts = document.createElement('div');
     acts.className = 'acts';
@@ -366,15 +435,18 @@
       );
       banner.replaceChildren(title, line('who', 'Vault terkunci. Buka Sealbox untuk menyimpannya.'), acts);
     } else {
-      title.textContent = o.kind === 'update' ? `Perbarui password di Sealbox?` : `Simpan login untuk ${o.host}?`;
+      // An update names the exact item it will change; the old password stays in Riwayat.
+      title.textContent = o.kind === 'update' ? `Perbarui password "${o.itemName}"?` : `Simpan login untuk ${o.host}?`;
       acts.append(
         button('open', o.kind === 'update' ? 'Perbarui' : 'Simpan', (b) => answer('save', b)),
         button('later', 'Nanti', (b) => answer('dismiss', b)),
       );
       if (o.kind === 'save') acts.append(button('never', 'Jangan untuk situs ini', (b) => answer('never', b)));
-      banner.replaceChildren(title, line('who', `${o.username || '(tanpa username)'} · ${o.host}`), acts);
+      const who = `${o.username || '(tanpa username)'} · ${o.host}`;
+      banner.replaceChildren(title, line('who', o.kind === 'update' ? `${who} · password lama tetap ada di Riwayat` : who), acts);
     }
     banner.style.display = 'block';
+    markShown(banner);
   }
 
   offerSave(); // after a login form navigated here

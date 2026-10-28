@@ -173,7 +173,7 @@ function VaultList({ onLocked }) {
       <div className="search"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari item…" autoFocus /></div>
       {offer && (
         <div className="card" style={{ margin: '0 12px 8px', padding: 12 }}>
-          <b>{offer.kind === 'update' ? 'Perbarui password?' : offer.generated ? `Simpan password baru untuk ${offer.host}?` : `Simpan login untuk ${offer.host}?`}</b>
+          <b>{offer.kind === 'update' ? `Perbarui password "${offer.itemName}"?` : offer.generated ? `Simpan password baru untuk ${offer.host}?` : `Simpan login untuk ${offer.host}?`}</b>
           {offer.generated && <p className="hint" style={{ margin: '2px 0 0' }}>Password ini dibuat Sealbox dan belum tersimpan.</p>}
           <p className="hint" style={{ margin: '2px 0 10px', wordBreak: 'break-all' }}>{offer.username || '(tanpa username)'} · {offer.host}</p>
           <div className="row" style={{ margin: 0 }}>

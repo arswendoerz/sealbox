@@ -8,6 +8,7 @@ import { PasswordGenerator } from '../components/PasswordGenerator.jsx';
 import { BackupDialog } from '../components/BackupDialog.jsx';
 import { TwoFactorDialog } from '../components/TwoFactorDialog.jsx';
 import { HealthView } from '../components/HealthView.jsx';
+import { HistoryDialog } from '../components/HistoryDialog.jsx';
 
 // view: 'all' | 'fav' | 'gen' | 'health' | `folder:${name}`
 export function Vault() {
@@ -19,6 +20,7 @@ export function Vault() {
   const [editing, setEditing] = useState(null); // null | {} (new) | item
   const [backingUp, setBackingUp] = useState(false);
   const [settingMfa, setSettingMfa] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const folders = useMemo(() => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort(), [items]);
 
@@ -63,6 +65,7 @@ export function Vault() {
         {nav('health', 'heartbeat', 'Kesehatan')}
         {offline && <div className="note warn" style={{ margin: '8px 0' }}><i className="ti ti-cloud-off" />Offline: hanya bisa dibaca</div>}
         <button className="nav" style={{ marginTop: 'auto' }} onClick={() => setBackingUp(true)}><i className="ti ti-database-export" />Backup</button>
+        <button className="nav" onClick={() => setShowHistory(true)}><i className="ti ti-history" />Riwayat</button>
         <button className="nav" onClick={() => setSettingMfa(true)}><i className="ti ti-shield-lock" />2FA</button>
         <button className="nav" onClick={lock}><i className="ti ti-lock" />Kunci vault</button>
         <button className="nav" onClick={signOut}><i className="ti ti-logout" />Keluar</button>
@@ -121,6 +124,7 @@ export function Vault() {
         />
       )}
       {backingUp && <BackupDialog onClose={() => setBackingUp(false)} />}
+      {showHistory && <HistoryDialog onClose={() => setShowHistory(false)} />}
       {settingMfa && <TwoFactorDialog copy={copy} onClose={() => setSettingMfa(false)} />}
       {message && <div className="toast"><i className="ti ti-check" />{message}</div>}
     </div>
