@@ -9,6 +9,8 @@ import { BackupDialog } from '../components/BackupDialog.jsx';
 import { TwoFactorDialog } from '../components/TwoFactorDialog.jsx';
 import { HealthView } from '../components/HealthView.jsx';
 import { HistoryDialog } from '../components/HistoryDialog.jsx';
+import { parseUrl } from '../lib/url.js';
+import { analyze } from '../lib/health.js';
 
 // view: 'all' | 'fav' | 'gen' | 'health' | `folder:${name}`
 export function Vault() {
@@ -34,6 +36,7 @@ export function Vault() {
   }, [items, view, query]);
 
   const selected = items.find((i) => i.id === selectedId);
+  const reused = useMemo(() => new Map(analyze(items).map((r) => [r.item.id, r.reusedWith])), [items]);
   const fullPage = view === 'gen' || view === 'health'; // views without the item list
 
   async function remove(item) {
@@ -53,7 +56,7 @@ export function Vault() {
   );
 
   return (
-    <div className={`app${selected || fullPage ? ' has-detail' : ''}`}>
+    <div className={`app${selected || fullPage ? ' has-detail' : ''}${fullPage ? ' no-list' : ''}`}>
       <aside className="side">
         <div className="brand"><img src="/logo.svg" alt="" />Sealbox</div>
         {nav('all', 'key', 'Semua item', items.length)}
@@ -81,7 +84,7 @@ export function Vault() {
             {visible.map((i) => (
               <button key={i.id} className={`item${i.id === selectedId ? ' on' : ''}`} onClick={() => setSelectedId(i.id)}>
                 <Avatar name={i.name} />
-                <div style={{ minWidth: 0 }}>{i.name}<small>{i.username || '—'}</small></div>
+                <div style={{ minWidth: 0 }}>{i.name}<small>{[i.username || '—', parseUrl(i.url)?.hostname].filter(Boolean).join(' · ')}</small></div>
                 {i.favorite && <i className="ti ti-star" />}
               </button>
             ))}
@@ -96,13 +99,21 @@ export function Vault() {
         ) : view === 'gen' ? (
           <div className="detail">
             <button className="btn back" onClick={() => setView('all')} style={{ marginBottom: 16 }}><i className="ti ti-arrow-left" /> Kembali</button>
-            <div className="card gen">
-              <h3 style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}><i className="ti ti-sparkles" style={{ color: 'var(--seal)' }} />Generator</h3>
-              <PasswordGenerator onCopy={(v) => copy(v, 'Password')} />
+            <div className="gwrap">
+              <div className="card gen">
+                <h3 style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}><i className="ti ti-sparkles" style={{ color: 'var(--seal)' }} />Generator</h3>
+                <PasswordGenerator onCopy={(v) => copy(v, 'Password')} />
+              </div>
+              <div className="card panel">
+                <h4><i className="ti ti-bulb" />Tips</h4>
+                <p className="hint">Passphrase 5–6 kata cocok untuk master password: mudah diingat, sulit ditebak.</p>
+                <p className="hint">Untuk situs lain, pakai password acak 20 karakter dan biarkan Sealbox yang mengingatnya. Aturan situs (panjang, simbol) bisa diatur per item.</p>
+                <p className="hint" style={{ margin: 0 }}>Password yang dibuat di sini tidak disimpan. Salin lalu simpan ke item.</p>
+              </div>
             </div>
           </div>
         ) : selected ? (
-          <ItemDetail key={selected.id} item={selected} copy={copy} onBack={() => setSelectedId(null)} onEdit={() => setEditing(selected)} onDelete={() => remove(selected)} />
+          <ItemDetail key={selected.id} item={selected} reusedWith={reused.get(selected.id) ?? 0} offline={offline} copy={copy} onBack={() => setSelectedId(null)} onEdit={() => setEditing(selected)} onDelete={() => remove(selected)} />
         ) : items.length === 0 ? (
           <div className="empty">
             <span className="big"><i className="ti ti-box" /></span>

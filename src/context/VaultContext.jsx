@@ -297,11 +297,14 @@ export function VaultProvider({ children }) {
   }, [updateCache]);
 
   // Previous versions of items (kept 30 days by the database on every change or delete).
-  const loadHistory = useCallback(async () => {
+  // All recent versions, or only those of one item.
+  const loadHistory = useCallback(async (itemId) => {
     if (offline) throw new Error('Riwayat butuh koneksi internet.');
-    const { data, error } = await supabase.from('vault_item_versions')
+    let query = supabase.from('vault_item_versions')
       .select('version_id, item_id, iv, data, item_updated_at, change, saved_at')
-      .order('saved_at', { ascending: false }).limit(300);
+      .order('saved_at', { ascending: false }).limit(itemId ? 20 : 300);
+    if (itemId) query = query.eq('item_id', itemId);
+    const { data, error } = await query;
     if (error) throw new Error(/does not exist|schema cache/i.test(error.message)
       ? 'Riwayat belum aktif: jalankan supabase/migrations/0003_protect_vault.sql di Supabase.' : error.message);
     return Promise.all(data.map(async (v) => {

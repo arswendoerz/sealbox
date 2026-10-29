@@ -69,6 +69,7 @@ export function HealthView({ items, offline, onOpen, onBack }) {
         {error && <p className="err" style={{ margin: '8px 0 0' }}>{error}</p>}
       </div>
 
+      <div className="hgrid">
       {groups.filter((g) => g.rows?.length).map((g) => (
         <section key={g.key} id={`h-${g.key}`} style={{ marginBottom: 18 }}>
           <label className="f" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><i className={`ti ti-${g.icon}`} />{g.title} · {g.hint}</label>
@@ -83,6 +84,7 @@ export function HealthView({ items, offline, onOpen, onBack }) {
           </div>
         </section>
       ))}
+      </div>
 
       {!report.length && <p className="sub">Belum ada item dengan password.</p>}
     </div>

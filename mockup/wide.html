@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sealbox Layar Lebar</title>
+<link rel="icon" href="../assets/logo.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<!-- The app's real stylesheet, so "Sekarang" is exactly what the app shows today.
+     Open through the dev server: npm run dev, then http://localhost:5173/mockup/wide.html -->
+<link rel="stylesheet" href="../src/index.css">
+<style>
+/* Mockup controls */
+.switch{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);font-size:12px;max-width:300px}
+.switch .tabs{margin:0}
+.switch p{margin:0;color:var(--muted)}
+.switch b{font-size:12px}
+
+/* Shared pieces used by the proposals */
+.panel{padding:16px 18px;margin-bottom:16px}
+.panel h4{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px}
+.panel h4 i{color:var(--brand)}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--muted)}
+.hist{display:flex;gap:10px;align-items:center;font-size:13px;padding:7px 0}
+.hist i{color:var(--muted)}
+.hist small{margin-left:auto;color:var(--muted)}
+
+/* ---------- A: wide detail (recommended) ---------- */
+@media (min-width:901px){.vA .app{grid-template-columns:236px 360px minmax(0,1fr)}}
+.vA .detail{max-width:1180px;margin:0 auto;padding:32px 40px}
+@media (max-width:900px){.vA .detail{padding:16px}}
+.vA .dgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+.vA .dmain{padding:22px}
+.vA .fields{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.vA .fields .wide{grid-column:1/-1}
+.vA .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.vA .gwrap{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:24px;align-items:start}
+/* Driven by the width of the content area, not the screen: the side columns take a fixed share. */
+.vA .main{container-type:inline-size}
+@container (max-width:1000px){.vA .dgrid,.vA .gwrap{grid-template-columns:1fr}}
+@container (max-width:760px){.vA .hgrid,.vA .fields{grid-template-columns:1fr}}
+
+/* ---------- B: centered window ---------- */
+.vB #root{padding:28px;height:100%}
+.vB .app{max-width:1360px;margin:0 auto;height:100%;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+.vB .detail{max-width:none;padding:28px 36px}
+.vB .gen{max-width:520px}
+
+@media (max-width:900px){.vB #root{padding:0}.vB .app{border-radius:0;border:0}.switch{left:16px;right:16px;max-width:none}}
+</style>
+</head>
+<body class="vA">
+<div id="root"></div>
+
+<div class="switch">
+  <b>Varian layout</b>
+  <div class="tabs" id="variants">
+    <button data-v="vNow">Sekarang</button>
+    <button data-v="vA" class="on">A · Detail lebar</button>
+    <button data-v="vB">B · Terpusat</button>
+  </div>
+  <div class="tabs" id="views">
+    <button data-p="item" class="on">Item</button>
+    <button data-p="health">Kesehatan</button>
+    <button data-p="gen">Generator</button>
+  </div>
+  <p id="desc"></p>
+</div>
+
+<script>
+const items = [
+  { n: 'Gmail', u: 'arswendo@gmail.com', url: 'mail.google.com', c: 0, fav: 1, f: 'Pribadi' },
+  { n: 'GitHub', u: 'arswendoerz', url: 'github.com', c: 4, f: 'Kerja' },
+  { n: 'Tokopedia', u: '0812xxxxxxx', url: 'tokopedia.com', c: 2, fav: 1, f: 'Belanja' },
+  { n: 'Facebook', u: 'arswendo', url: 'facebook.com', c: 1, f: 'Sosial' },
+  { n: 'LinkedIn', u: 'arswendo@gmail.com', url: 'linkedin.com', c: 1, f: 'Kerja' },
+  { n: 'Netflix', u: 'arswendo@gmail.com', url: 'netflix.com', c: 0 },
+  { n: 'Cloudflare', u: 'arswendo@gmail.com', url: 'dash.cloudflare.com', c: 3, f: 'Kerja' },
+  { n: 'Supabase', u: 'arswendo@gmail.com', url: 'supabase.com', c: 2, f: 'Kerja' },
+  { n: 'YMC Portal', u: 'arswendo', url: 'pratinjau.ymc.my.id', c: 4, f: 'Kerja' },
+];
+const DESC = {
+  vNow: 'Tampilan saat ini. Detail item berhenti di 640 px; Kesehatan dan Generator terjepit di kolom 320 px (bug) dan sisa layar kosong.',
+  vA: 'Detail memakai seluruh lebar: kolom kanan berisi keamanan, situs dan riwayat item. Kalau area isi kurang dari 1000 px (mis. layar 1366 px), kolom kanan turun ke bawah.',
+  vB: 'Aplikasi menjadi satu jendela di tengah (maks 1360 px) dengan latar di kiri-kanan. Isi tidak berubah.',
+};
+// Each variant also has its own link: wide.html?v=now | ?v=a | ?v=b (and &p=item|health|gen).
+const params = new URLSearchParams(location.search);
+let variant = { now: 'vNow', a: 'vA', b: 'vB' }[params.get('v')] ?? 'vA';
+let page = ['item', 'health', 'gen'].includes(params.get('p')) ? params.get('p') : 'item';
+
+const nav = (icon, label, on, count) => `<button class="nav${on ? ' on' : ''}"><i class="ti ti-${icon}"></i>${label}${count != null ? `<b>${count}</b>` : ''}</button>`;
+const val = (label, text, icons, cls = '') => `<label class="f">${label}</label><div class="val"><span class="${cls}">${text}</span>${icons.map((i) => `<button><i class="ti ti-${i}"></i></button>`).join('')}</div>`;
+const pill = (icon, text, tone) => `<span class="pill" style="background:var(--${tone}-soft, var(--soft));color:var(--${tone === 'soft' ? 'muted' : tone})"><i class="ti ti-${icon}"></i>${text}</span>`;
+
+function side() {
+  return `<aside class="side">
+    <div class="brand"><img src="../assets/logo.svg" alt="">Sealbox</div>
+    ${nav('key', 'Semua item', page === 'item', items.length)}
+    ${nav('star', 'Favorit', false, 2)}
+    <div class="sep"></div>
+    ${['Belanja', 'Kerja', 'Pribadi', 'Sosial'].map((f) => nav('folder', f, false)).join('')}
+    <div class="sep"></div>
+    ${nav('wand', 'Generator', page === 'gen')}
+    ${nav('heartbeat', 'Kesehatan', page === 'health')}
+    <div style="margin-top:auto"></div>
+    ${nav('database-export', 'Backup')}${nav('history', 'Riwayat')}${nav('shield-lock', '2FA')}${nav('lock', 'Kunci vault')}${nav('logout', 'Keluar')}
+  </aside>`;
+}
+
+function list() {
+  return `<div class="list">
+    <div class="search"><input placeholder="Cari item…"><button class="btn pri icon"><i class="ti ti-plus"></i></button></div>
+    <div class="items">${items.map((i, k) => `<button class="item${k === 0 ? ' on' : ''}"><span class="av c${i.c}">${i.n[0]}</span><div style="min-width:0">${i.n}<small>${variant === 'vA' ? `${i.u} · ${i.url}` : i.u}</small></div>${i.fav ? '<i class="ti ti-star"></i>' : ''}</button>`).join('')}</div>
+  </div>`;
+}
+
+const head = `<div class="dh"><span class="av c0">G</span><div style="min-width:0"><h3>Gmail</h3><a class="link" href="#">mail.google.com</a></div>
+  <div class="act"><button class="btn"><i class="ti ti-edit"></i> Edit</button><button class="btn icon danger"><i class="ti ti-trash"></i></button></div></div>`;
+
+function itemNow() {
+  return `<div class="detail">${head}
+    ${val('Username', 'arswendo@gmail.com', ['copy'])}
+    ${val('Password', '••••••••••••••••', ['eye', 'copy'], 'mono')}
+    ${val('Catatan', 'Akun utama, recovery ke nomor HP', [])}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${pill('shield-check', 'Password sangat kuat', 'ok')}${pill('folder', 'Pribadi', 'soft')}${pill('clock', 'Diubah 12/8/2026', 'soft')}</div>
+  </div>`;
+}
+
+function itemA() {
+  return `<div class="detail">${head}
+    <div class="dgrid">
+      <div class="card dmain">
+        <div class="fields">
+          <div>${val('Username', 'arswendo@gmail.com', ['copy'])}</div>
+          <div>${val('Password', '••••••••••••••••', ['eye', 'copy'], 'mono')}</div>
+          <div class="wide">${val('URL', 'https://mail.google.com', ['external-link', 'copy'])}</div>
+          <div class="wide">${val('Catatan', 'Akun utama, recovery ke nomor HP', [])}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${pill('folder', 'Pribadi', 'soft')}${pill('star', 'Favorit', 'warn')}${pill('clock', 'Diubah 12 Agu 2026', 'soft')}</div>
+      </div>
+      <div>
+        <div class="card panel">
+          <h4><i class="ti ti-shield-check"></i>Keamanan</h4>
+          <div class="meter" style="margin:0 0 8px"><i class="lv4" style="width:100%"></i></div>
+          <div class="kv"><span>Kekuatan</span>Sangat kuat · 131 bit</div>
+          <div class="kv"><span>Dipakai ulang</span>Tidak</div>
+          <div class="kv"><span>Umur password</span>78 hari</div>
+          <div class="kv"><span>Kebocoran</span><button class="link">Cek sekarang</button></div>
+        </div>
+        <div class="card panel">
+          <h4><i class="ti ti-world"></i>Situs dan isi otomatis</h4>
+          <div class="kv"><span>Diisi di</span>google.com (semua subdomain)</div>
+          <div class="kv"><span>Aturan password</span>Dari database: google.com</div>
+        </div>
+        <div class="card panel">
+          <h4><i class="ti ti-history"></i>Riwayat item</h4>
+          <div class="hist"><i class="ti ti-pencil"></i>Password diubah<small>12 Agu</small></div>
+          <div class="hist"><i class="ti ti-pencil"></i>Catatan diubah<small>3 Jun</small></div>
+          <div class="hist"><i class="ti ti-plus"></i>Dibuat<small>20 Mei</small></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const groups = [
+  ['alert-octagon', 'Pernah bocor', 1, 'bad', 'Muncul di data kebocoran publik. Ganti secepatnya.'],
+  ['copy', 'Dipakai ulang', 2, 'bad', 'Jika satu situs bocor, akun lain ikut terancam.'],
+  ['shield-exclamation', 'Lemah', 1, 'warn', 'Mudah ditebak. Buat ulang dengan generator.'],
+  ['clock', 'Lama', 0, '', 'Tidak diganti lebih dari 365 hari.'],
+];
+function health() {
+  const card = ([icon, title, n, tone, hint], k) => `<div class="card" style="padding:16px;margin-bottom:${variant === 'vA' ? 0 : 12}px">
+      <h3 style="font-size:14px;display:flex;gap:8px;align-items:center"><i class="ti ti-${icon}" style="color:var(--${tone || 'muted'})"></i>${title} <span class="hint" style="margin:0">(${n})</span></h3>
+      <p class="hint" style="margin:4px 0 8px">${hint}</p>
+      ${n ? items.slice(k, k + n).map((i) => `<button class="item" style="border-radius:8px"><span class="av c${i.c}">${i.n[0]}</span><div>${i.n}<small>${i.u}</small></div></button>`).join('') : '<p class="sub" style="margin:0">Tidak ada.</p>'}
+    </div>`;
+  return `<div class="detail">
+    <h3 style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><i class="ti ti-heartbeat" style="color:var(--seal)"></i>Kesehatan password</h3>
+    <div class="card" style="padding:18px;margin-bottom:16px;display:flex;align-items:center;gap:18px">
+      <div class="score lv2">56</div>
+      <div style="min-width:0"><b>4 dari 9 password perlu perhatian</b><p class="hint" style="margin:4px 0 0">Dihitung di perangkat ini. Tidak ada password yang dikirim ke server.</p></div>
+      ${variant === 'vA' ? '<button class="btn pri" style="margin-left:auto"><i class="ti ti-search"></i> Cek kebocoran</button>' : ''}
+    </div>
+    <div class="stats">${groups.map(([, t, n, tone]) => `<a class="stat${n ? ` ${tone || 'warn'}` : ''}"><b>${n}</b>${t}</a>`).join('')}</div>
+    <div class="${variant === 'vA' ? 'hgrid' : ''}">${groups.map(card).join('')}</div>
+  </div>`;
+}
+
+function gen() {
+  const box = `<div class="card gen">
+      <h3 style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><i class="ti ti-sparkles" style="color:var(--seal)"></i>Generator</h3>
+      <div class="tabs"><button class="on">Password</button><button>Passphrase</button></div>
+      <div class="out"><span class="mono">vT9#qL2!xR7mPz@4kW8$</span><button><i class="ti ti-refresh"></i></button><button><i class="ti ti-copy"></i></button></div>
+      <label class="f">Panjang: 20</label><input type="range" value="20" min="8" max="64">
+      <div class="opt"><label><input type="checkbox" checked>A–Z</label><label><input type="checkbox" checked>0–9</label><label><input type="checkbox" checked>!@#</label></div>
+      <div class="meter"><i class="lv4" style="width:100%"></i></div><p class="hint">Sangat kuat · 128 bit · lebih dari 1 juta tahun untuk ditebak</p>
+    </div>`;
+  if (variant !== 'vA') return `<div class="detail">${box}</div>`;
+  return `<div class="detail"><div class="gwrap">${box}
+    <div>
+      <div class="card panel"><h4><i class="ti ti-bulb"></i>Tips</h4>
+        <p class="hint" style="margin:0 0 8px">Passphrase 5–6 kata cocok untuk master password: mudah diingat, sulit ditebak.</p>
+        <p class="hint" style="margin:0">Untuk situs lain, pakai password acak 20 karakter dan biarkan Sealbox yang mengingatnya.</p>
+      </div>
+      <div class="card panel"><h4><i class="ti ti-clock"></i>Baru dibuat (hanya di sesi ini)</h4>
+        <div class="hist"><span class="mono">vT9#qL2!xR7mPz@4kW8$</span><small>baru saja</small></div>
+        <div class="hist"><span class="mono">Kopi-Senja-Ombak-Rimba-42</span><small>1 mnt</small></div>
+      </div>
+    </div></div></div>`;
+}
+
+function render() {
+  document.body.className = variant;
+  const main = page === 'health' ? health() : page === 'gen' ? gen() : variant === 'vA' ? itemA() : itemNow();
+  const fullPage = page !== 'item';
+  document.getElementById('root').innerHTML = `<div class="app has-detail">${side()}${fullPage ? '' : list()}<main class="main">${main}</main></div>`;
+  // Full-page views drop the list column. Today the grid keeps 3 columns, so the page lands in the
+  // 320 px list column (the bug). The proposals give it the whole width.
+  if (fullPage && variant !== 'vNow' && innerWidth > 900) document.querySelector('.app').style.gridTemplateColumns = getComputedStyle(document.querySelector('.app')).gridTemplateColumns.split(' ')[0] + ' minmax(0,1fr)';
+  document.getElementById('desc').textContent = DESC[variant];
+  history.replaceState(null, '', `?v=${{ vNow: 'now', vA: 'a', vB: 'b' }[variant]}&p=${page}`);
+  for (const b of document.querySelectorAll('#variants button')) b.classList.toggle('on', b.dataset.v === variant);
+  for (const b of document.querySelectorAll('#views button')) b.classList.toggle('on', b.dataset.p === page);
+}
+document.getElementById('variants').onclick = (e) => { if (e.target.dataset.v) { variant = e.target.dataset.v; render(); } };
+document.getElementById('views').onclick = (e) => { if (e.target.dataset.p) { page = e.target.dataset.p; render(); } };
+render();
+</script>
+</body>
+</html>
