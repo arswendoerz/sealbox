@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StrengthMeter } from './StrengthMeter.jsx';
 import { PasswordGenerator } from './PasswordGenerator.jsx';
 import { parseRules, checkRules, describeRules, knownRulesFor, RULE_PRESETS } from '../lib/passwordRules.js';
+import { MAX_FOLDER_NAME } from '../lib/folders.js';
 
 const NEW_FOLDER = ' new'; // folder names are trimmed, so none starts with a space
 const EMPTY = { name: '', url: '', username: '', password: '', folder: '', notes: '', favorite: false, exactHost: false, rules: '' };
@@ -90,7 +91,7 @@ export function ItemForm({ item, folders, onSave, onClose }) {
             <label className="f">Folder</label>
             {typingFolder ? (
               <div className="pwrow">
-                <input autoFocus value={form.folder} onChange={set('folder')} placeholder="Nama folder baru" maxLength={60} />
+                <input autoFocus value={form.folder} onChange={set('folder')} placeholder="Nama folder baru" maxLength={MAX_FOLDER_NAME} />
                 <button type="button" className="btn icon" title="Pilih folder yang ada" onClick={() => { setTypingFolder(false); setForm({ ...form, folder: '' }); }}><i className="ti ti-list" /></button>
               </div>
             ) : (

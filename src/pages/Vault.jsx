@@ -10,12 +10,13 @@ import { TwoFactorDialog } from '../components/TwoFactorDialog.jsx';
 import { HealthView } from '../components/HealthView.jsx';
 import { HistoryDialog } from '../components/HistoryDialog.jsx';
 import { ThemeSwitch } from '../components/ThemeSwitch.jsx';
+import { folderNames, MAX_FOLDER_NAME } from '../lib/folders.js';
 import { parseUrl } from '../lib/url.js';
 import { analyze } from '../lib/health.js';
 
 // view: 'all' | 'fav' | 'gen' | 'health' | `folder:${name}`
 export function Vault() {
-  const { items, saveItem, deleteItem, lock, signOut, offline } = useVault();
+  const { items, folders: folderRows, saveItem, deleteItem, createFolder, deleteFolder, lock, signOut, offline } = useVault();
   const { copy, message } = useClipboard(30);
   const [view, setView] = useState('all');
   const [query, setQuery] = useState('');
@@ -25,20 +26,41 @@ export function Vault() {
   const [settingMfa, setSettingMfa] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  // A folder is a name on its items. New folders live in this session until an item is put in them.
-  const [newFolders, setNewFolders] = useState([]);
+  // Folder names come from items and from saved (possibly empty) folders.
   const [naming, setNaming] = useState(null); // null | name being typed for a new folder
-  const folders = useMemo(() => [...new Set([...items.map((i) => i.folder), ...newFolders].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [items, newFolders]);
+  const folders = useMemo(() => folderNames(items, folderRows), [items, folderRows]);
+  const openFolder = view.startsWith('folder:') ? view.slice(7) : null;
 
-  function createFolder(e) {
+  async function newFolder(e) {
     e.preventDefault();
     if (naming === null) return; // blur from the input being removed after Enter
-    const name = naming.trim();
+    const input = naming;
     setNaming(null);
-    if (!name) return;
-    setNewFolders((f) => [...f, name]);
-    setView(`folder:${name}`);
-    setSelectedId(null);
+    if (!input.trim()) return;
+    try {
+      const name = await createFolder(input);
+      setView(`folder:${name}`);
+      setSelectedId(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function removeFolder(name) {
+    if (!confirm(`Hapus folder "${name}"?`)) return;
+    try {
+      await deleteFolder(name);
+      setView('all');
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  // A folder made from the item form is saved too, so it stays when its items move out.
+  async function save(data) {
+    const isNew = data.folder && !folders.includes(data.folder);
+    setSelectedId(await saveItem(data));
+    if (isNew) createFolder(data.folder).catch(() => {});
   }
 
   const visible = useMemo(() => {
@@ -81,11 +103,11 @@ export function Vault() {
         {naming === null ? (
           <button className="nav" onClick={() => setNaming('')}><i className="ti ti-folder-plus" />Folder baru</button>
         ) : (
-          <form className="new-folder" onSubmit={createFolder}>
+          <form className="new-folder" onSubmit={newFolder}>
             <i className="ti ti-folder-plus" />
             <input
-              autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} placeholder="Nama folder" maxLength={60}
-              onKeyDown={(e) => e.key === 'Escape' && setNaming(null)} onBlur={(e) => createFolder(e)}
+              autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} placeholder="Nama folder" maxLength={MAX_FOLDER_NAME}
+              onKeyDown={(e) => e.key === 'Escape' && setNaming(null)} onBlur={(e) => newFolder(e)}
             />
           </form>
         )}
@@ -117,7 +139,14 @@ export function Vault() {
             ))}
             {visible.length === 0 && (query.trim() || !view.startsWith('folder:')
               ? items.length > 0 && <p className="sub" style={{ padding: 16 }}>Tidak ada item yang cocok.</p>
-              : <p className="sub" style={{ padding: 16 }}>Folder ini masih kosong. Tambahkan item dengan tombol +, atau pindahkan item lewat Edit.</p>)}
+              : (
+                <div style={{ padding: 16 }}>
+                  <p className="sub" style={{ margin: '0 0 12px' }}>Folder ini masih kosong. Tambahkan item dengan tombol +, atau pindahkan item lewat Edit.</p>
+                  {folderRows.some((f) => f.name === openFolder) && (
+                    <button className="btn danger" onClick={() => removeFolder(openFolder)} disabled={offline}><i className="ti ti-trash" /> Hapus folder</button>
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -160,7 +189,7 @@ export function Vault() {
           item={editing}
           folders={folders}
           onClose={() => setEditing(null)}
-          onSave={async (data) => setSelectedId(await saveItem(data))}
+          onSave={save}
         />
       )}
       {backingUp && <BackupDialog onClose={() => setBackingUp(false)} />}

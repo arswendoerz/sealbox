@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase.js';
 import * as db from '../lib/db.js';
 import { makeBackup, openBackup, planImport } from '../lib/backup.js';
 import { mfaPending, verifySecondFactor } from '../lib/mfa.js';
-import { byName, pull, decryptRecords, hasKeyVersions, writeError } from '../lib/vaultData.js';
+import { byName, pull, decryptVault, hasKeyVersions, writeError } from '../lib/vaultData.js';
+import { isFolder, MAX_FOLDER_NAME } from '../lib/folders.js';
 import { rotateVaultKey } from '../lib/rotate.js';
 
 const MFA_STEP_MS = 5 * 60 * 1000; // the 2FA screen holds the master key; give up after this
@@ -46,6 +47,7 @@ export function VaultProvider({ children }) {
   const [status, setStatus] = useState('loading');
   const [user, setUser] = useState(null); // { id, email }
   const [items, setItems] = useState([]);
+  const [folders, setFolders] = useState([]); // folder rows: [{ id, name, updatedAt }]
   const [offline, setOffline] = useState(false);
   const [hasLegacy, setHasLegacy] = useState(null); // email of a Phase 1 local vault, if any
   const keyRef = useRef(null); // vault key: memory only, never persisted
@@ -67,6 +69,7 @@ export function VaultProvider({ children }) {
       } else if (event === 'SIGNED_OUT') {
         keyRef.current = null;
         setItems([]);
+        setFolders([]);
         setUser(null);
         setStatus('signedOut');
       } else if (event === 'SIGNED_IN' && session && !authFlow.current) {
@@ -83,7 +86,9 @@ export function VaultProvider({ children }) {
     const moved = off ? [] : await migrateLegacy(u.id, u.email, password, key);
     if (moved.length) setHasLegacy(null);
     keyRef.current = key;
-    setItems(await decryptRecords([...records.filter((r) => !moved.some((m) => m.id === r.id)), ...moved], key));
+    const vault = await decryptVault([...records.filter((r) => !moved.some((m) => m.id === r.id)), ...moved], key);
+    setItems(vault.items);
+    setFolders(vault.folders);
     setOffline(off);
     setUser(u);
     setStatus('unlocked');
@@ -209,6 +214,7 @@ export function VaultProvider({ children }) {
     keyRef.current = null;
     clearClipboard();
     setItems([]);
+    setFolders([]);
     setStatus((s) => (s === 'unlocked' ? 'locked' : s));
   }, []);
 
@@ -296,6 +302,30 @@ export function VaultProvider({ children }) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, [updateCache]);
 
+  // Keeps a folder even while no item is in it (see lib/folders.js).
+  const createFolder = useCallback(async (input) => {
+    const name = input.trim().slice(0, MAX_FOLDER_NAME);
+    if (!name || folders.some((f) => f.name === name)) return name;
+    if (offline) throw new Error('Membuat folder butuh koneksi internet.');
+    const id = crypto.randomUUID();
+    const row = await toRow(id, { kind: 'folder', name });
+    const { error } = await supabase.from('vault_items').upsert(row);
+    if (error) throw failWrite(error, 'membuat folder');
+    await updateCache((rs) => [...rs, row]);
+    setFolders((prev) => [...prev, { id, name, updatedAt: Date.parse(row.updated_at) }]);
+    return name;
+  }, [folders, offline, toRow, failWrite, updateCache]);
+
+  // Removes the folder's own row(s); its items, if any, keep their folder name.
+  const deleteFolder = useCallback(async (name) => {
+    const ids = folders.filter((f) => f.name === name).map((f) => f.id);
+    if (!ids.length) return;
+    const { error } = await supabase.from('vault_items').delete().in('id', ids);
+    if (error) throw new Error(`Gagal menghapus folder: ${error.message}`);
+    await updateCache((rs) => rs.filter((r) => !ids.includes(r.id)));
+    setFolders((prev) => prev.filter((f) => !ids.includes(f.id)));
+  }, [folders, updateCache]);
+
   // Previous versions of items (kept 30 days by the database on every change or delete).
   // All recent versions, or only those of one item.
   const loadHistory = useCallback(async (itemId) => {
@@ -318,8 +348,9 @@ export function VaultProvider({ children }) {
 
   const restoreVersion = useCallback(async (version) => {
     if (!version.item) throw new Error('Versi ini tidak bisa dibuka.');
+    if (isFolder(version.item)) return createFolder(version.item.name);
     return saveItem({ ...version.item, id: version.item_id });
-  }, [saveItem]);
+  }, [saveItem, createFolder]);
 
   const exportBackup = useCallback(async () => {
     const { profile, records } = await pull(user.id);
@@ -331,17 +362,18 @@ export function VaultProvider({ children }) {
   const importBackup = useCallback(async (backup, secret) => {
     if (offline) throw new Error('Impor butuh koneksi internet.');
     const { items: incoming, sameVault } = await openBackup(backup, keyRef.current, secret);
-    const { changed, ...counts } = planImport(incoming, sameVault, items);
+    const { changed, ...counts } = planImport(incoming, sameVault, [...items, ...folders.map((f) => ({ ...f, kind: 'folder' }))]);
     const rows = await Promise.all(changed.map(({ id, updatedAt, ...plain }) => toRow(id, plain, new Date(updatedAt).toISOString())));
     if (rows.length) {
       const { error } = await supabase.from('vault_items').upsert(rows);
       if (error) throw failWrite(error, 'mengimpor');
       const ids = new Set(rows.map((r) => r.id));
       await updateCache((rs) => [...rs.filter((r) => !ids.has(r.id)), ...rows]);
-      setItems((prev) => [...prev.filter((i) => !ids.has(i.id)), ...changed].sort(byName));
+      setItems((prev) => [...prev.filter((i) => !ids.has(i.id)), ...changed.filter((i) => !isFolder(i))].sort(byName));
+      setFolders((prev) => [...prev.filter((f) => !ids.has(f.id)), ...changed.filter(isFolder).map(({ id, name, updatedAt }) => ({ id, name, updatedAt }))]);
     }
     return counts;
-  }, [items, offline, toRow, failWrite, updateCache]);
+  }, [items, folders, offline, toRow, failWrite, updateCache]);
 
   // Pick up changes made on other devices when the tab regains focus.
   useEffect(() => {
@@ -353,9 +385,10 @@ export function VaultProvider({ children }) {
         const { profile, records, offline: off } = await pull(user.id);
         if (keyRef.current !== key) return; // locked meanwhile: don't bring plaintext back
         if (keyVersionRef.current != null && profile?.key_version !== keyVersionRef.current) return lock(); // key rotated elsewhere
-        const decrypted = await decryptRecords(records, key);
+        const vault = await decryptVault(records, key);
         if (keyRef.current !== key) return;
-        setItems(decrypted);
+        setItems(vault.items);
+        setFolders(vault.folders);
         setOffline(off);
       } catch { /* keep what we have */ }
     };
@@ -369,8 +402,9 @@ export function VaultProvider({ children }) {
   }, []);
 
   const value = {
-    status, user, items, offline, hasLegacy,
+    status, user, items, folders, offline, hasLegacy,
     register, login, unlock, completeMfa, lock, signOut, requestRecovery, completeRecovery, saveItem, deleteItem, discardLegacy,
+    createFolder, deleteFolder,
     exportBackup, importBackup, loadHistory, restoreVersion,
   };
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;

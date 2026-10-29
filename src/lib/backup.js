@@ -1,6 +1,7 @@
 import { deriveAccountKeys } from '../crypto/kdf.js';
 import { decryptJSON } from '../crypto/aes.js';
 import { unwrapVaultKey, recoveryWrappingKey } from '../crypto/keys.js';
+import { isFolder, MAX_FOLDER_NAME } from './folders.js';
 
 const FORMAT = 'sealbox-backup';
 const VERSION = 1;
@@ -43,6 +44,11 @@ const TEXT_FIELDS = ['name', 'url', 'username', 'password', 'folder', 'notes', '
 // Keeps only known fields with the right types, so an imported item can't break the vault UI.
 function cleanItem(raw, id, updatedAt) {
   if (!UUID.test(id) || typeof raw !== 'object' || raw === null) throw new Error('bad item');
+  if (isFolder(raw)) {
+    const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, MAX_FOLDER_NAME) : '';
+    if (!name) throw new Error('bad folder');
+    return { id, kind: 'folder', name, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now() };
+  }
   const item = { id, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(), favorite: raw.favorite === true, exactHost: raw.exactHost === true };
   for (const f of TEXT_FIELDS) item[f] = typeof raw[f] === 'string' ? raw[f] : '';
   if (!item.name.trim()) item.name = item.url || 'Tanpa nama';
@@ -90,12 +96,15 @@ export async function openBackup(backup, currentKey, secret) {
 //   this vault from before its key was replaced (needed a secret, yet shares item ids): add only
 //   the items that no longer exist, and never overwrite one, since a file opened with its own
 //   secret can't be trusted to be ours. Later versions of existing items are in Riwayat.
+// currentItems includes this vault's folder rows; a folder row from another vault is skipped when
+// a folder with that name already exists.
 export function planImport(incoming, sameVault, currentItems) {
   const current = new Map(currentItems.map((i) => [i.id, i]));
+  const folderNames = new Set(currentItems.filter(isFolder).map((f) => f.name));
   const olderKey = !sameVault && incoming.some((i) => current.has(i.id));
   const changed = sameVault
     ? incoming.filter((i) => !(current.get(i.id)?.updatedAt >= i.updatedAt))
-    : incoming.filter((i) => !current.has(i.id)).map((i) => ({ ...i, id: crypto.randomUUID() }));
+    : incoming.filter((i) => !current.has(i.id) && !(isFolder(i) && folderNames.has(i.name))).map((i) => ({ ...i, id: crypto.randomUUID() }));
   const added = changed.filter((i) => !current.has(i.id)).length;
   return { changed, added, updated: changed.length - added, skipped: incoming.length - changed.length, olderKey };
 }

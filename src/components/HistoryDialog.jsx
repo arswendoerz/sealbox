@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useVault } from '../context/VaultContext.jsx';
 import { Avatar } from './Avatar.jsx';
+import { isFolder } from '../lib/folders.js';
 
 const when = (iso) => new Date(iso).toLocaleString('id', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -46,7 +47,7 @@ export function HistoryDialog({ onClose }) {
               <div key={v.version_id} className="item" style={{ cursor: 'default' }}>
                 <Avatar name={v.item?.name ?? '?'} />
                 <div style={{ minWidth: 0 }}>
-                  {v.item ? v.item.name : <i>Tidak bisa dibuka</i>}
+                  {v.item ? (isFolder(v.item) ? `Folder ${v.item.name}` : v.item.name) : <i>Tidak bisa dibuka</i>}
                   <small>
                     {v.change === 'delete' ? 'Dihapus' : 'Diubah'} {when(v.saved_at)}
                     {v.item?.username ? ` · ${v.item.username}` : ''}

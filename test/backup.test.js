@@ -116,6 +116,14 @@ describe('importing untrusted items', () => {
     expect(item).not.toHaveProperty('extra');
   });
 
+  it('keeps folder rows as folders, and refuses one without a name', async () => {
+    const acc = await account('h@x.com', 'pw-h', [{ kind: 'folder', name: '  Kampus  ', extra: 1 }]);
+    const [folder] = (await openBackup(parseBackup(fileOf(acc)), acc.key)).items;
+    expect(folder).toEqual({ id: acc.records[0].id, kind: 'folder', name: 'Kampus', updatedAt: expect.any(Number) });
+    const bad = await account('i@x.com', 'pw-i', [{ kind: 'folder', name: '   ' }]);
+    await expect(openBackup(parseBackup(fileOf(bad)), bad.key)).rejects.toMatchObject({ code: 'locked' });
+  });
+
   it('refuses item ids that are not UUIDs', async () => {
     const bad = await account('f@x.com', 'pw-f', [{ name: 'x' }]);
     bad.records[0].id = 'not-a-uuid';

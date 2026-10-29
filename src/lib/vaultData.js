@@ -1,4 +1,5 @@
 import { decryptJSON } from '../crypto/aes.js';
+import { isFolder } from './folders.js';
 import { supabase } from './supabase.js';
 import * as db from './db.js';
 
@@ -50,7 +51,16 @@ export async function pull(userId) {
   return { ...cached, offline: true };
 }
 
+// { items, folders }: folder rows (see folders.js) apart from the items.
+export async function decryptVault(records, key) {
+  const all = await Promise.all(records.map(async (r) => ({ ...(await decryptJSON(r, key)), id: r.id, updatedAt: Date.parse(r.updated_at) })));
+  return {
+    items: all.filter((i) => !isFolder(i)).sort(byName),
+    folders: all.filter(isFolder).map(({ id, name, updatedAt }) => ({ id, name, updatedAt })),
+  };
+}
+
+// Items only. The extension uses this, so folder rows never reach autofill.
 export async function decryptRecords(records, key) {
-  const items = await Promise.all(records.map(async (r) => ({ ...(await decryptJSON(r, key)), id: r.id, updatedAt: Date.parse(r.updated_at) })));
-  return items.sort(byName);
+  return (await decryptVault(records, key)).items;
 }
