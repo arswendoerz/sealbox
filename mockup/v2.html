@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sealbox UI v2</title>
+<link rel="icon" href="../assets/logo.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<!-- The app's real stylesheet. Open through the dev server: npm run dev, then
+     http://localhost:5173/mockup/v2.html -->
+<link rel="stylesheet" href="../src/index.css">
+<style>
+html,body{height:auto}
+body{padding-bottom:60px}
+.mk-head{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--line)}
+.mk-head img{height:28px}
+.mk-head h1{font-size:16px;margin:0;flex:1}
+.mk-head .theme{width:auto}
+.mk-wrap{max-width:1400px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:minmax(0,1fr);gap:40px}
+.mk-legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.mk-legend a{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:13px}
+.mk-legend a:hover{border-color:var(--brand)}
+section>h2{display:flex;align-items:center;gap:10px;font-size:15px;margin:0 0 4px}
+section>p{margin:0 0 14px;color:var(--muted);font-size:13px;max-width:900px}
+.num{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--grad);color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+.frame{position:relative;height:720px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);box-shadow:var(--shadow)}
+.frame.short{height:auto}
+.frame .app{height:100%}
+.pin{position:absolute;z-index:25;pointer-events:none}
+.pin .num{box-shadow:0 0 0 3px var(--card)}
+.row-screens{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+kbd{display:inline-block;min-width:20px;padding:1px 6px;border-radius:5px;border:1px solid var(--line);border-bottom-width:2px;background:var(--soft);font:600 11px/1.5 ui-monospace,Consolas,monospace;color:var(--muted);text-align:center}
+
+/* 1 · phone */
+.phone{position:relative;width:min(375px,100%);height:760px;border-radius:40px;border:10px solid #1E1B4B;background:var(--bg);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.p-top{display:flex;align-items:center;gap:10px;padding:16px 16px 10px}
+.p-top h3{flex:1;font-size:20px}
+.p-top .btn{padding:7px 9px}
+.p-search{padding:0 16px 8px}
+.p-search input{margin:0}
+.p-chips{display:flex;gap:6px;padding:0 16px 10px;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:12px;white-space:nowrap;color:var(--text)}
+.chip.on{background:var(--brand-soft);border-color:transparent;color:var(--brand-ink);font-weight:600}
+.p-list{flex:1;overflow:hidden;background:var(--card);border-top:1px solid var(--line)}
+.bnav{display:grid;grid-template-columns:repeat(5,1fr);padding:8px 6px 14px;border-top:1px solid var(--line);background:var(--card)}
+.bnav a{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--muted);text-decoration:none}
+.bnav a i{font-size:21px}
+.bnav a.on{color:var(--brand);font-weight:600}
+.fab{position:absolute;right:18px;bottom:84px;width:54px;height:54px;border-radius:18px;border:0;background:var(--grad);color:#fff;font-size:24px;box-shadow:var(--glow);display:flex;align-items:center;justify-content:center}
+.sheet{position:absolute;inset:auto 0 0;background:var(--card);border-radius:22px 22px 0 0;padding:10px 16px 24px;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+.sheet:before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+.sheet .nav{padding:11px 10px;font-size:14px}
+.dim{position:absolute;inset:0;background:rgba(20,18,40,.45)}
+
+/* 3 · quick copy */
+.item .qc{margin-left:auto;display:flex;gap:4px}
+.item .qc button{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:7px;padding:4px 7px;font-size:14px;cursor:pointer}
+.item .qc button:hover{color:var(--brand);border-color:var(--brand)}
+.toast2{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);min-width:320px;display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:var(--text);color:var(--card);font-size:13px;box-shadow:var(--shadow);overflow:hidden}
+.toast2 .bar{position:absolute;left:0;bottom:0;height:3px;background:var(--seal)}
+.toast2 button{margin-left:auto;background:none;border:0;color:var(--seal);font:inherit;font-weight:700;cursor:pointer}
+
+/* 7 · folder menu, 8 · sort/filter */
+.nav .cnt{margin-left:auto;font-size:11px;opacity:.7}
+.menu{position:absolute;z-index:22;min-width:190px;padding:6px;border-radius:12px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow)}
+.menu button{display:flex;width:100%;align-items:center;gap:10px;padding:8px 10px;border:0;background:none;border-radius:8px;color:var(--text);font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--soft)}
+.menu .danger{color:var(--bad)}
+.menu kbd{margin-left:auto}
+.listbar{display:flex;gap:6px;align-items:center;padding:0 12px 10px;flex-wrap:wrap}
+.listbar select{width:auto;margin:0;padding:4px 8px;font-size:12px}
+.dropzone{outline:2px dashed var(--brand);outline-offset:-2px;background:var(--brand-soft)!important;color:var(--brand-ink)!important}
+.ghost{position:absolute;z-index:23;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:9px;background:var(--card);border:1px solid var(--brand);box-shadow:var(--shadow);font-size:12px;transform:rotate(-3deg)}
+
+/* 6 · checklist */
+.check-card{padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line);margin:8px 4px 4px}
+.check-card b{font-size:12px;display:flex;justify-content:space-between}
+.ck{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0;color:var(--muted)}
+.ck i{font-size:15px}
+.ck.done{text-decoration:line-through}
+.ck.done i{color:var(--ok)}
+
+/* 11 · totp */
+.totp{display:flex;align-items:center;gap:12px}
+.ring{width:26px;height:26px;flex-shrink:0}
+.totp .code{font:600 20px ui-monospace,Consolas,monospace;letter-spacing:3px}
+
+/* 2 · settings */
+.settings{max-width:980px;margin:0 auto;padding:28px 36px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.srow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.srow:last-child{border-bottom:0}
+.srow>div{flex:1;min-width:0}
+.srow small{display:block;color:var(--muted);font-size:12px}
+.srow select{width:auto;margin:0;padding:5px 8px;font-size:13px}
+.sw{width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;flex-shrink:0}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sw.on{background:var(--brand)}
+.sw.on:after{left:19px}
+.prog{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:8px 0 12px}
+.prog i{display:block;height:100%;background:var(--grad)}
+
+/* 5 · confirm */
+.confirm{position:absolute;z-index:30;left:50%;top:50%;transform:translate(-50%,-50%);width:400px;padding:22px;text-align:center}
+.confirm .big{display:inline-flex;width:52px;height:52px;border-radius:16px;align-items:center;justify-content:center;background:var(--bad-soft);color:var(--bad);font-size:26px;margin-bottom:10px}
+.btn.solid-bad{background:var(--bad);border-color:var(--bad);color:var(--card);font-weight:600}
+
+/* 4 · palette */
+.palette{position:absolute;z-index:30;left:50%;top:70px;transform:translateX(-50%);width:600px;overflow:hidden}
+.palette .q{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);font-size:15px}
+.palette .q input{border:0;margin:0;padding:0;box-shadow:none!important;font-size:15px;background:none}
+.palette .grp{padding:8px 8px 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.palette .r{display:flex;align-items:center;gap:10px;padding:8px 10px;margin:0 6px;border-radius:9px;font-size:13px}
+.palette .r.on{background:var(--brand-soft)}
+.palette .r small{color:var(--muted)}
+.palette .r .k{margin-left:auto;display:flex;gap:4px}
+.palette .foot{display:flex;gap:16px;padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);margin-top:6px}
+.keys{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px}
+.keys div{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px dashed var(--line)}
+
+/* 13 · site icons */
+.fav{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--soft);border:1px solid var(--line);font-size:17px}
+
+/* 10 · unlock */
+.caps{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--warn);margin:-4px 0 10px}
+.who{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--soft);margin-bottom:14px;text-align:left}
+.who .av{width:36px;height:36px}
+
+@media (max-width:900px){.frame{height:auto;min-height:600px}.sgrid,.keys{grid-template-columns:1fr}.palette,.confirm{width:calc(100% - 32px)}}
+</style>
+</head>
+<body>
+<header class="mk-head">
+  <img src="../assets/logo.svg" alt="">
+  <h1>Sealbox · usulan UI/UX v2</h1>
+  <div class="theme" id="mkTheme">
+    <button data-t="light" title="Terang"><i class="ti ti-sun"></i></button>
+    <button data-t="dark" title="Gelap"><i class="ti ti-moon"></i></button>
+  </div>
+</header>
+
+<div class="mk-wrap">
+  <div class="mk-legend" id="legend"></div>
+
+  <!-- ===== Vault desktop: 3, 4, 6, 7, 8, 11, 13 ===== -->
+  <section id="s-vault">
+    <h2><span class="num">3</span><span class="num">4</span><span class="num">6</span><span class="num">7</span><span class="num">8</span><span class="num">11</span> Vault di desktop</h2>
+    <p>Sidebar lebih ringkas (Backup, Riwayat, 2FA dan tema pindah ke Pengaturan). Baris item yang disorot punya tombol salin cepat. Folder menampilkan jumlah item dan punya menu; item bisa diseret ke folder. Daftar bisa diurutkan dan disaring. Detail item menampilkan kode 2FA. Kartu "Keamanan akun" di bawah sidebar.</p>
+    <div class="frame">
+      <div class="app">
+        <aside class="side">
+          <div class="brand"><img src="../assets/logo.svg" alt="">Sealbox</div>
+          <button class="nav on"><i class="ti ti-key"></i>Semua item<b>24</b></button>
+          <button class="nav"><i class="ti ti-star"></i>Favorit<b>5</b></button>
+          <div class="sep"></div>
+          <button class="nav"><i class="ti ti-folder"></i>Belanja<span class="cnt">4</span></button>
+          <button class="nav dropzone"><i class="ti ti-folder-down"></i>Lepas di Kampus<span class="cnt">3</span></button>
+          <button class="nav" style="background:var(--soft);color:var(--text)"><i class="ti ti-folder"></i>Kerja<span class="cnt">9</span></button>
+          <button class="nav"><i class="ti ti-folder"></i>Pribadi<span class="cnt">6</span></button>
+          <button class="nav"><i class="ti ti-folder-plus"></i>Folder baru</button>
+          <div class="sep"></div>
+          <button class="nav"><i class="ti ti-wand"></i>Generator</button>
+          <button class="nav"><i class="ti ti-heartbeat"></i>Kesehatan<b style="background:var(--bad-soft);color:var(--bad);padding:0 6px;border-radius:8px;opacity:1">3</b></button>
+          <div style="margin-top:auto"></div>
+          <div class="check-card">
+            <b>Keamanan akun <span style="color:var(--brand)">3/4</span></b>
+            <div class="prog" style="margin:6px 0 8px"><i style="width:75%"></i></div>
+            <div class="ck done"><i class="ti ti-circle-check-filled"></i>Recovery key disimpan</div>
+            <div class="ck done"><i class="ti ti-circle-check-filled"></i>2FA aktif</div>
+            <div class="ck done"><i class="ti ti-circle-check-filled"></i>Ekstensi terpasang</div>
+            <div class="ck"><i class="ti ti-circle"></i><a class="link" style="font-size:12px">Buat backup pertama</a></div>
+          </div>
+          <button class="nav"><i class="ti ti-settings"></i>Pengaturan</button>
+          <button class="nav"><i class="ti ti-lock"></i>Kunci vault<kbd style="margin-left:auto">L</kbd></button>
+        </aside>
+        <div class="list">
+          <div class="search"><input placeholder="Cari item…   ( / )"><button class="btn pri icon" title="Item baru (N)"><i class="ti ti-plus"></i></button></div>
+          <div class="listbar">
+            <select><option>Urut: Nama</option><option>Terakhir diubah</option><option>Terakhir dipakai</option></select>
+            <span class="chip on">Semua</span><span class="chip">Login</span><span class="chip">Kartu</span><span class="chip"><i class="ti ti-alert-triangle" style="color:var(--warn)"></i>Lemah</span>
+          </div>
+          <div class="items" id="vaultItems"></div>
+        </div>
+        <main class="main">
+          <div class="detail">
+            <div class="dh"><span class="av c0">G</span><div style="min-width:0"><h3>Gmail</h3><a class="link">mail.google.com</a></div>
+              <div class="act"><button class="btn"><i class="ti ti-edit"></i> Edit <kbd>E</kbd></button><button class="btn icon danger"><i class="ti ti-trash"></i></button></div></div>
+            <div class="dgrid">
+              <div class="card dmain">
+                <div class="fields">
+                  <div><label class="f">Username</label><div class="val"><span>arswendo@gmail.com</span><button><i class="ti ti-copy"></i></button></div></div>
+                  <div><label class="f">Password <kbd>Ctrl C</kbd></label><div class="val"><span class="mono">••••••••••••••••</span><button><i class="ti ti-eye"></i></button><button><i class="ti ti-copy"></i></button></div></div>
+                  <div class="wide"><label class="f">Kode 2FA (TOTP)</label>
+                    <div class="val totp"><svg class="ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--brand)" stroke-width="4" stroke-dasharray="94" stroke-dashoffset="35" transform="rotate(-90 18 18)" stroke-linecap="round"/></svg><span class="code">482 913</span><small style="color:var(--muted)">berganti dalam 18 dtk</small><button style="margin-left:auto"><i class="ti ti-copy"></i></button></div>
+                  </div>
+                  <div class="wide"><label class="f">URL</label><div class="val"><span>https://mail.google.com</span><button><i class="ti ti-external-link"></i></button><button><i class="ti ti-copy"></i></button></div></div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill" style="background:var(--soft);color:var(--muted)"><i class="ti ti-folder"></i>Pribadi</span><span class="pill" style="background:var(--warn-soft);color:var(--warn)"><i class="ti ti-star"></i>Favorit</span></div>
+              </div>
+              <div>
+                <div class="card panel"><h4><i class="ti ti-shield-check"></i>Keamanan</h4><div class="meter" style="margin:0 0 8px"><i class="lv4" style="width:100%"></i></div><div class="kv"><span>Kekuatan</span><span>Sangat kuat · 131 bit</span></div><div class="kv"><span>Dipakai ulang</span><span>Tidak</span></div><div class="kv"><span>Kebocoran</span><span style="color:var(--ok)">Tidak ditemukan</span></div></div>
+                <div class="card panel"><h4><i class="ti ti-history"></i>Riwayat item</h4><div class="hist"><i class="ti ti-pencil"></i>Password diubah<small>12 Agu</small></div><div class="hist"><i class="ti ti-pencil"></i>Catatan diubah<small>3 Jun</small></div></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+      <!-- folder context menu (7) -->
+      <div class="menu" style="left:226px;top:186px">
+        <button><i class="ti ti-pencil"></i>Ganti nama</button>
+        <button><i class="ti ti-palette"></i>Warna &amp; ikon</button>
+        <button class="danger"><i class="ti ti-trash"></i>Hapus folder</button>
+      </div>
+            <div class="pin" style="left:204px;top:150px"><span class="num">7</span></div>
+      <div class="pin" style="left:410px;top:16px"><span class="num">4</span></div>
+      <div class="pin" style="left:560px;top:96px"><span class="num">8</span></div>
+      <div class="pin" style="left:584px;top:226px"><span class="num">3</span></div>
+      <div class="pin" style="left:12px;bottom:150px"><span class="num">6</span></div>
+      <div class="pin" style="left:675px;top:190px"><span class="num">11</span></div>
+      <div class="toast2"><i class="ti ti-check"></i>Password Gmail disalin · clipboard dihapus dalam 24 dtk<span class="bar" style="width:80%"></span></div>
+      <div class="pin" style="left:calc(50% - 175px);bottom:60px"><span class="num">3</span></div>
+    </div>
+  </section>
+
+  <!-- ===== Phone: 1 ===== -->
+  <section id="s-phone">
+    <h2><span class="num">1</span> Navigasi di ponsel</h2>
+    <p>Sidebar yang menumpuk diganti bar navigasi bawah dan tombol + mengambang. "Lainnya" membuka lembar berisi Pengaturan, Backup, Riwayat dan Kunci. Detail item punya tombol aksi besar yang mudah dijangkau jempol.</p>
+    <div class="row-screens">
+      <div class="phone">
+        <div class="p-top"><h3>Semua item</h3><button class="btn"><i class="ti ti-arrows-sort"></i></button><button class="btn"><i class="ti ti-lock"></i></button></div>
+        <div class="p-search"><input placeholder="Cari item…"></div>
+        <div class="p-chips"><span class="chip on">Semua</span><span class="chip">Favorit</span><span class="chip">Belanja</span><span class="chip">Kampus</span><span class="chip">Kerja</span></div>
+        <div class="p-list" id="phoneItems"></div>
+        <button class="fab"><i class="ti ti-plus"></i></button>
+        <nav class="bnav"><a class="on"><i class="ti ti-key"></i>Item</a><a><i class="ti ti-folder"></i>Folder</a><a><i class="ti ti-wand"></i>Generator</a><a><i class="ti ti-heartbeat"></i>Kesehatan</a><a><i class="ti ti-dots"></i>Lainnya</a></nav>
+      </div>
+      <div class="phone">
+        <div class="p-top"><button class="btn"><i class="ti ti-arrow-left"></i></button><h3 style="font-size:17px">Gmail</h3><button class="btn"><i class="ti ti-edit"></i></button></div>
+        <div style="padding:6px 16px;flex:1;overflow:hidden">
+          <div style="text-align:center;margin:6px 0 16px"><span class="av c0" style="width:64px;height:64px;font-size:26px;border-radius:18px;margin:0 auto">G</span><div class="sub" style="margin:6px 0 0">mail.google.com</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+            <button class="btn" style="padding:14px;flex-direction:column;gap:4px"><i class="ti ti-user" style="font-size:20px"></i>Salin username</button>
+            <button class="btn pri" style="padding:14px;flex-direction:column;gap:4px"><i class="ti ti-key" style="font-size:20px"></i>Salin password</button>
+          </div>
+          <label class="f">Kode 2FA</label><div class="val totp"><svg class="ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--brand)" stroke-width="4" stroke-dasharray="94" stroke-dashoffset="35" transform="rotate(-90 18 18)"/></svg><span class="code">482 913</span><button style="margin-left:auto"><i class="ti ti-copy"></i></button></div>
+          <label class="f">Catatan</label><div class="val"><span>Akun utama, recovery ke nomor HP</span></div>
+        </div>
+        <nav class="bnav"><a class="on"><i class="ti ti-key"></i>Item</a><a><i class="ti ti-folder"></i>Folder</a><a><i class="ti ti-wand"></i>Generator</a><a><i class="ti ti-heartbeat"></i>Kesehatan</a><a><i class="ti ti-dots"></i>Lainnya</a></nav>
+      </div>
+      <div class="phone">
+        <div class="p-top"><h3>Semua item</h3></div>
+        <div class="p-list" id="phoneItems2"></div>
+        <nav class="bnav"><a><i class="ti ti-key"></i>Item</a><a><i class="ti ti-folder"></i>Folder</a><a><i class="ti ti-wand"></i>Generator</a><a><i class="ti ti-heartbeat"></i>Kesehatan</a><a class="on"><i class="ti ti-dots"></i>Lainnya</a></nav>
+        <div class="dim"></div>
+        <div class="sheet">
+          <button class="nav"><i class="ti ti-settings"></i>Pengaturan</button>
+          <button class="nav"><i class="ti ti-database-export"></i>Backup</button>
+          <button class="nav"><i class="ti ti-history"></i>Riwayat</button>
+          <button class="nav"><i class="ti ti-shield-lock"></i>2FA</button>
+          <div class="sep"></div>
+          <button class="nav"><i class="ti ti-lock"></i>Kunci vault</button>
+          <button class="nav" style="color:var(--bad)"><i class="ti ti-logout"></i>Keluar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Settings: 2, 6, 13 ===== -->
+  <section id="s-settings">
+    <h2><span class="num">2</span><span class="num">6</span><span class="num">13</span> Halaman Pengaturan</h2>
+    <p>Satu tempat untuk semua pengaturan, dengan opsi baru: lama auto-lock, kunci saat tab disembunyikan, lama clipboard dihapus, dan ikon situs (mati secara default karena alasan privasi). Checklist keamanan tampil di atas.</p>
+    <div class="frame">
+      <div class="app no-list">
+        <aside class="side">
+          <div class="brand"><img src="../assets/logo.svg" alt="">Sealbox</div>
+          <button class="nav"><i class="ti ti-key"></i>Semua item<b>24</b></button>
+          <button class="nav"><i class="ti ti-star"></i>Favorit<b>5</b></button>
+          <div class="sep"></div>
+          <button class="nav"><i class="ti ti-wand"></i>Generator</button>
+          <button class="nav"><i class="ti ti-heartbeat"></i>Kesehatan</button>
+          <div style="margin-top:auto"></div>
+          <button class="nav on"><i class="ti ti-settings"></i>Pengaturan</button>
+          <button class="nav"><i class="ti ti-lock"></i>Kunci vault</button>
+        </aside>
+        <main class="main" style="grid-column:2/-1">
+          <div class="settings">
+            <h3 style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><i class="ti ti-settings" style="color:var(--brand)"></i>Pengaturan</h3>
+            <div class="card panel" style="display:flex;gap:18px;align-items:center">
+              <div class="score lv3">75</div>
+              <div style="flex:1"><b>Keamanan akun: 3 dari 4 langkah selesai</b>
+                <div class="prog"><i style="width:75%"></i></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill" style="background:var(--ok-soft);color:var(--ok)"><i class="ti ti-check"></i>Recovery key</span><span class="pill" style="background:var(--ok-soft);color:var(--ok)"><i class="ti ti-check"></i>2FA</span><span class="pill" style="background:var(--ok-soft);color:var(--ok)"><i class="ti ti-check"></i>Ekstensi</span><span class="pill" style="background:var(--warn-soft);color:var(--warn)"><i class="ti ti-database-export"></i>Backup belum pernah</span></div>
+              </div>
+            </div>
+            <div class="sgrid">
+              <div>
+                <div class="card panel"><h4><i class="ti ti-lock"></i>Kunci otomatis</h4>
+                  <div class="srow"><div>Kunci setelah tidak dipakai<small>Vault dikunci dan isinya dihapus dari memori</small></div><select><option>5 menit</option><option>1 menit</option><option>15 menit</option><option>1 jam</option></select></div>
+                  <div class="srow"><div>Kunci saat tab disembunyikan<small>Setelah 1 menit di tab lain</small></div><span class="sw"></span></div>
+                  <div class="srow"><div>Hapus clipboard setelah<small>Password yang disalin</small></div><select><option>30 detik</option><option>15 detik</option><option>1 menit</option></select></div>
+                </div>
+                <div class="card panel"><h4><i class="ti ti-palette"></i>Tampilan</h4>
+                  <div class="srow"><div>Tema</div><div class="theme" style="flex:none"><button><i class="ti ti-device-desktop"></i></button><button class="on"><i class="ti ti-sun"></i></button><button><i class="ti ti-moon"></i></button></div></div>
+                  <div class="srow"><div>Ikon situs <span class="num" style="height:18px;min-width:18px;font-size:10px">13</span><small>Mengambil ikon dari setiap situs. Situs itu jadi tahu Anda menyimpan akun di sana.</small></div><span class="sw"></span></div>
+                  <div class="srow"><div>Urutan daftar bawaan</div><select><option>Nama</option><option>Terakhir diubah</option></select></div>
+                </div>
+              </div>
+              <div>
+                <div class="card panel"><h4><i class="ti ti-database"></i>Data</h4>
+                  <div class="srow"><div>Backup terenkripsi<small>Belum pernah dibuat</small></div><button class="btn"><i class="ti ti-download"></i>Unduh</button></div>
+                  <div class="srow"><div>Impor<small>Backup Sealbox atau CSV (Chrome, Bitwarden, 1Password)</small></div><button class="btn"><i class="ti ti-upload"></i>Impor</button></div>
+                  <div class="srow"><div>Riwayat item<small>Versi lama disimpan 30 hari</small></div><button class="btn"><i class="ti ti-history"></i>Buka</button></div>
+                </div>
+                <div class="card panel"><h4><i class="ti ti-user-shield"></i>Akun</h4>
+                  <div class="srow"><div>Email<small>arswendo@gmail.com</small></div></div>
+                  <div class="srow"><div>Verifikasi 2 langkah<small>Aktif · aplikasi autentikator</small></div><button class="btn">Kelola</button></div>
+                  <div class="srow"><div>Recovery key<small>Hanya ditampilkan sekali saat daftar</small></div><button class="btn">Cara memakai</button></div>
+                  <div class="srow"><div>Keluar dari perangkat ini</div><button class="btn danger"><i class="ti ti-logout"></i>Keluar</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Confirm + undo: 5 ===== -->
+  <section id="s-confirm">
+    <h2><span class="num">5</span> Konfirmasi dan urungkan</h2>
+    <p>Dialog bawaan browser diganti dialog Sealbox. Setelah dihapus, notifikasi memberi 8 detik untuk "Urungkan" (memakai Riwayat yang sudah ada).</p>
+    <div class="frame" style="height:460px">
+      <div class="app" style="filter:blur(1.5px);opacity:.6;pointer-events:none">
+        <aside class="side"><div class="brand"><img src="../assets/logo.svg" alt="">Sealbox</div><button class="nav on"><i class="ti ti-key"></i>Semua item</button></aside>
+        <div class="list"><div class="items" id="confirmItems"></div></div>
+        <main class="main"></main>
+      </div>
+      <div class="dim" style="background:rgba(20,18,40,.25)"></div>
+      <div class="card confirm">
+        <span class="big"><i class="ti ti-trash"></i></span>
+        <h3 style="margin-bottom:6px">Hapus "Netflix"?</h3>
+        <p class="sub" style="margin-bottom:18px">Item bisa dipulihkan dari Riwayat selama 30 hari.</p>
+        <div style="display:flex;gap:8px;justify-content:center"><button class="btn">Batal <kbd>Esc</kbd></button><button class="btn solid-bad"><i class="ti ti-trash"></i>Hapus</button></div>
+      </div>
+      <div class="toast2" style="bottom:18px"><i class="ti ti-trash"></i>"Tokopedia" dihapus<button>Urungkan</button><span class="bar" style="width:60%"></span></div>
+    </div>
+  </section>
+
+  <!-- ===== Shortcuts: 4 ===== -->
+  <section id="s-keys">
+    <h2><span class="num">4</span> Shortcut dan palet perintah</h2>
+    <p><kbd>Ctrl</kbd> <kbd>K</kbd> membuka palet: cari item, salin password, atau jalankan perintah tanpa mouse. <kbd>?</kbd> menampilkan daftar shortcut.</p>
+    <div class="row-screens">
+      <div class="frame" style="flex:1.4;min-width:min(640px,100%);height:520px">
+        <div class="dim" style="background:rgba(20,18,40,.35)"></div>
+        <div class="card palette">
+          <div class="q"><i class="ti ti-search" style="color:var(--muted)"></i><input value="git"><kbd>Esc</kbd></div>
+          <div class="grp">Item</div>
+          <div class="r on"><span class="av c4" style="width:26px;height:26px;font-size:12px;border-radius:7px">G</span>GitHub <small>arswendoerz</small><span class="k"><kbd>↵</kbd> salin password</span></div>
+          <div class="r"><span class="av c2" style="width:26px;height:26px;font-size:12px;border-radius:7px">G</span>GitLab Kampus <small>arswendo</small></div>
+          <div class="grp">Perintah</div>
+          <div class="r"><i class="ti ti-plus"></i>Item baru<span class="k"><kbd>N</kbd></span></div>
+          <div class="r"><i class="ti ti-wand"></i>Buat password<span class="k"><kbd>G</kbd></span></div>
+          <div class="r"><i class="ti ti-lock"></i>Kunci vault<span class="k"><kbd>L</kbd></span></div>
+          <div class="foot"><span><kbd>↑</kbd> <kbd>↓</kbd> pilih</span><span><kbd>↵</kbd> salin password</span><span><kbd>Shift</kbd> <kbd>↵</kbd> salin username</span></div>
+        </div>
+      </div>
+      <div class="card panel" style="flex:1;min-width:300px">
+        <h4><i class="ti ti-keyboard"></i>Shortcut keyboard</h4>
+        <div class="keys">
+          <div>Cari<span><kbd>/</kbd></span></div><div>Palet perintah<span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
+          <div>Pindah item<span><kbd>↑</kbd> <kbd>↓</kbd></span></div><div>Item baru<span><kbd>N</kbd></span></div>
+          <div>Salin password<span><kbd>Ctrl</kbd> <kbd>C</kbd></span></div><div>Salin username<span><kbd>Ctrl</kbd> <kbd>B</kbd></span></div>
+          <div>Edit item<span><kbd>E</kbd></span></div><div>Hapus item<span><kbd>Del</kbd></span></div>
+          <div>Kunci vault<span><kbd>L</kbd></span></div><div>Daftar shortcut<span><kbd>?</kbd></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Health: 9 ===== -->
+  <section id="s-health">
+    <h2><span class="num">9</span> Kesehatan: "Ganti sekarang"</h2>
+    <p>Setiap password bermasalah punya tombol yang membuka halaman ganti password situsnya (alamat standar <code>/.well-known/change-password</code>), lalu Sealbox menyiapkan password baru yang sesuai aturan situs dan menawarkan menyimpannya.</p>
+    <div class="row-screens">
+      <div class="card" style="flex:1.3;min-width:min(560px,100%);overflow:hidden" id="healthRows"></div>
+      <div class="card panel" style="flex:1;min-width:300px;margin:0">
+        <h4><i class="ti ti-route"></i>Alur ganti password</h4>
+        <div class="hist"><span class="num">1</span>Klik "Ganti sekarang": tab baru ke halaman ganti password situs</div>
+        <div class="hist"><span class="num">2</span>Ekstensi mengisi password lama dan membuat yang baru</div>
+        <div class="hist"><span class="num">3</span>Setelah dikirim, Sealbox menawarkan "Perbarui item"</div>
+        <div class="hist"><span class="num">4</span>Kesehatan langsung diperbarui</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Unlock: 10 ===== -->
+  <section id="s-unlock">
+    <h2><span class="num">10</span> Buka vault</h2>
+    <p>Email akun terlihat jelas, ada peringatan Caps Lock, dan tautan "Bukan Anda? Keluar" untuk perangkat bersama.</p>
+    <div class="frame short" style="padding:40px 16px;display:flex;justify-content:center">
+      <div class="card auth">
+        <img class="logo" src="../assets/logo.svg" alt="">
+        <h3>Vault terkunci</h3>
+        <p class="sub">Masukkan master password untuk membuka.</p>
+        <div class="who"><span class="av c4">A</span><div style="min-width:0;flex:1"><b style="font-size:13px">arswendo@gmail.com</b><small style="display:block;color:var(--muted);font-size:12px">Dikunci 3 menit lalu (tidak dipakai)</small></div></div>
+        <form>
+          <label class="f">Master password</label>
+          <div class="pwrow"><input type="password" value="kopisenjaombak" style="flex:1"><button type="button" class="btn icon" style="margin-bottom:10px"><i class="ti ti-eye"></i></button></div>
+          <div class="caps"><i class="ti ti-arrow-big-up-line"></i>Caps Lock menyala</div>
+          <button class="btn pri full" type="button"><i class="ti ti-lock-open"></i>Buka vault</button>
+        </form>
+        <p class="sub" style="margin:14px 0 0"><a class="link">Lupa master password?</a> · <a class="link">Bukan Anda? Keluar</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Item types + TOTP: 11, 12 ===== -->
+  <section id="s-types">
+    <h2><span class="num">11</span><span class="num">12</span> Jenis item dan kode 2FA</h2>
+    <p>Tambah item punya jenis: Login, Kartu, Catatan aman, Identitas. Login bisa menyimpan secret 2FA (ketik atau pindai QR), lalu kode 6 digitnya tampil di detail dan bisa diisi ekstensi.</p>
+    <div class="row-screens">
+      <div class="card modal" style="max-width:440px">
+        <h3>Tambah item<button class="btn icon"><i class="ti ti-x"></i></button></h3>
+        <div class="tabs"><button class="on"><i class="ti ti-key"></i> Login</button><button><i class="ti ti-credit-card"></i> Kartu</button><button><i class="ti ti-note"></i> Catatan</button><button><i class="ti ti-id"></i> Identitas</button></div>
+        <label class="f">Nama</label><input value="GitHub">
+        <label class="f">Username</label><input value="arswendoerz">
+        <label class="f">Password</label><input class="mono" value="••••••••••••••••">
+        <label class="f">Secret 2FA (opsional)</label>
+        <div class="pwrow"><input class="mono" placeholder="JBSW Y3DP EHPK 3PXP" value="JBSW Y3DP EHPK 3PXP"><button class="btn icon" style="margin-bottom:10px" title="Pindai QR dari layar"><i class="ti ti-qrcode"></i></button></div>
+        <p class="hint" style="margin-top:-6px">Kode berikutnya: <b class="mono">104 552</b> · disimpan terenkripsi seperti password.</p>
+        <div class="row" style="justify-content:flex-end;margin:0"><button class="btn">Batal</button><button class="btn pri">Simpan</button></div>
+      </div>
+      <div class="card modal" style="max-width:440px">
+        <h3>Tambah item<button class="btn icon"><i class="ti ti-x"></i></button></h3>
+        <div class="tabs"><button><i class="ti ti-key"></i> Login</button><button class="on"><i class="ti ti-credit-card"></i> Kartu</button><button><i class="ti ti-note"></i> Catatan</button><button><i class="ti ti-id"></i> Identitas</button></div>
+        <div style="height:150px;border-radius:14px;background:var(--grad);color:#fff;padding:16px;display:flex;flex-direction:column;justify-content:space-between;margin-bottom:14px;box-shadow:var(--glow)">
+          <div style="display:flex;justify-content:space-between"><b>BCA</b><i class="ti ti-brand-visa" style="font-size:28px"></i></div>
+          <div class="mono" style="font-size:18px;letter-spacing:2px">•••• •••• •••• 4821</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>ARSWENDO</span><span>08/29</span></div>
+        </div>
+        <label class="f">Nama di kartu</label><input value="ARSWENDO">
+        <div class="grid2"><div><label class="f">Nomor kartu</label><input class="mono" value="•••• 4821"></div><div class="grid2"><div><label class="f">Berlaku</label><input value="08/29"></div><div><label class="f">CVV</label><input value="•••"></div></div></div>
+        <div class="row" style="justify-content:flex-end;margin:0"><button class="btn">Batal</button><button class="btn pri">Simpan</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Site icons: 13 ===== -->
+  <section id="s-icons">
+    <h2><span class="num">13</span> Ikon situs (opsional)</h2>
+    <p>Kalau dinyalakan di Pengaturan, avatar huruf diganti ikon situs. Mati secara default: mengambil ikon membuat situs tersebut (atau layanan ikon) tahu akun apa saja yang Anda simpan.</p>
+    <div class="row-screens">
+      <div class="card" style="width:360px;overflow:hidden"><div class="grp" style="padding:10px 14px;font-size:12px;color:var(--muted)">Mati (bawaan)</div><div id="iconsOff"></div></div>
+      <div class="card" style="width:360px;overflow:hidden"><div class="grp" style="padding:10px 14px;font-size:12px;color:var(--muted)">Menyala</div><div id="iconsOn"></div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const LEGEND = [
+  [1, 'Navigasi ponsel: bar bawah + tombol +', 's-phone'],
+  [2, 'Halaman Pengaturan', 's-settings'],
+  [3, 'Salin cepat + hitung mundur clipboard', 's-vault'],
+  [4, 'Shortcut keyboard dan palet perintah', 's-keys'],
+  [5, 'Dialog konfirmasi + Urungkan', 's-confirm'],
+  [6, 'Checklist keamanan akun', 's-settings'],
+  [7, 'Folder: jumlah, menu, seret item', 's-vault'],
+  [8, 'Urutkan dan saring daftar', 's-vault'],
+  [9, 'Kesehatan: Ganti sekarang', 's-health'],
+  [10, 'Layar buka vault', 's-unlock'],
+  [11, 'Kode 2FA (TOTP) di item', 's-types'],
+  [12, 'Jenis item: Kartu, Catatan, Identitas', 's-types'],
+  [13, 'Ikon situs (opsional)', 's-icons'],
+];
+document.getElementById('legend').innerHTML = LEGEND.map(([n, t, id]) => `<a href="#${id}"><span class="num">${n}</span>${t}</a>`).join('');
+
+const items = [
+  ['Gmail', 'arswendo@gmail.com · mail.google.com', 0, 1, 'mail'],
+  ['GitHub', 'arswendoerz · github.com', 4, 0, 'brand-github'],
+  ['LinkedIn', 'arswendo@gmail.com · linkedin.com', 1, 0, 'brand-linkedin'],
+  ['Netflix', 'arswendo@gmail.com · netflix.com', 0, 0, 'brand-netflix'],
+  ['Tokopedia', '0812xxxxxxx · tokopedia.com', 2, 1, 'shopping-bag'],
+  ['YMC Portal', 'arswendo · pratinjau.ymc.my.id', 4, 0, 'school'],
+  ['BCA', 'Kartu · •••• 4821', 3, 0, 'credit-card'],
+  ['Catatan WiFi', 'Catatan aman', 2, 0, 'note'],
+];
+const row = ([n, s, c, fav], k, opts = {}) => `<div class="item${opts.on === k ? ' on' : ''}"${opts.hover === k ? ' style="background:var(--soft)"' : ''}>
+  <span class="av c${c}">${n[0]}</span><div style="min-width:0">${n}<small>${s}</small></div>
+  ${opts.hover === k ? '<span class="qc"><button title="Salin username"><i class="ti ti-user"></i></button><button title="Salin password"><i class="ti ti-key"></i></button><button title="Salin kode 2FA"><i class="ti ti-clock-shield"></i></button></span>' : fav ? '<i class="ti ti-star"></i>' : ''}</div>`;
+document.getElementById('vaultItems').innerHTML = items.map((i, k) => row(i, k, { on: 0, hover: 4 })).join('');
+document.getElementById('phoneItems').innerHTML = items.map((i, k) => row(i, k)).join('');
+document.getElementById('phoneItems2').innerHTML = items.map((i, k) => row(i, k)).join('');
+document.getElementById('confirmItems').innerHTML = items.map((i, k) => row(i, k, { on: 3 })).join('');
+document.getElementById('iconsOff').innerHTML = items.slice(0, 5).map((i, k) => row(i, k)).join('');
+document.getElementById('iconsOn').innerHTML = items.slice(0, 5).map(([n, s, , fav, icon]) => `<div class="item"><span class="fav"><i class="ti ti-${icon}"></i></span><div style="min-width:0">${n}<small>${s}</small></div>${fav ? '<i class="ti ti-star"></i>' : ''}</div>`).join('');
+
+const health = [
+  ['Tokopedia', 'Pernah bocor 3.861×', 'bad', 2],
+  ['GitHub', 'Dipakai ulang di 1 item lain', 'bad', 4],
+  ['YMC Portal', 'Lemah · 14 bit', 'warn', 4],
+  ['Facebook', 'Tidak diganti 412 hari', 'warn', 1],
+];
+document.getElementById('healthRows').innerHTML = health.map(([n, note, tone, c]) => `<div class="item" style="cursor:default">
+  <span class="av c${c}">${n[0]}</span><div style="min-width:0">${n}<small style="color:var(--${tone})">${note}</small></div>
+  <button class="btn ${tone === 'bad' ? 'pri' : ''}" style="margin-left:auto;padding:6px 12px;font-size:12px"><i class="ti ti-external-link"></i>Ganti sekarang</button></div>`).join('');
+
+// Theme toggle for the mockup itself.
+const mk = document.getElementById('mkTheme');
+const setTheme = (t) => { document.documentElement.dataset.theme = t; for (const b of mk.children) b.classList.toggle('on', b.dataset.t === t); };
+mk.onclick = (e) => { const b = e.target.closest('button'); if (b) setTheme(b.dataset.t); };
+setTheme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+</script>
+</body>
+</html>
