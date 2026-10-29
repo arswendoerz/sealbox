@@ -3,11 +3,14 @@ import { StrengthMeter } from './StrengthMeter.jsx';
 import { PasswordGenerator } from './PasswordGenerator.jsx';
 import { parseRules, checkRules, describeRules, knownRulesFor, RULE_PRESETS } from '../lib/passwordRules.js';
 
+const NEW_FOLDER = ' new'; // folder names are trimmed, so none starts with a space
 const EMPTY = { name: '', url: '', username: '', password: '', folder: '', notes: '', favorite: false, exactHost: false, rules: '' };
 
 export function ItemForm({ item, folders, onSave, onClose }) {
   const [form, setForm] = useState({ ...EMPTY, ...item });
   const [showGen, setShowGen] = useState(false);
+  const [typingFolder, setTypingFolder] = useState(false);
+  const folderOptions = [...new Set([...folders, form.folder].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const [showPw, setShowPw] = useState(false);
   const [showRules, setShowRules] = useState(!!item?.rules);
   const [known, setKnown] = useState(null); // { domain, rules } from Apple's dataset for this URL
@@ -28,7 +31,7 @@ export function ItemForm({ item, folders, onSave, onClose }) {
     setBusy(true);
     setError('');
     try {
-      await onSave({ ...form, name: form.name.trim() || form.url.trim() || 'Tanpa nama' });
+      await onSave({ ...form, name: form.name.trim() || form.url.trim() || 'Tanpa nama', folder: form.folder.trim() });
       onClose();
     } catch (err) {
       setError(err.message);
@@ -85,8 +88,22 @@ export function ItemForm({ item, folders, onSave, onClose }) {
         <div className="grid2">
           <div>
             <label className="f">Folder</label>
-            <input value={form.folder} onChange={set('folder')} list="folders" placeholder="Sosial" />
-            <datalist id="folders">{folders.map((f) => <option key={f} value={f} />)}</datalist>
+            {typingFolder ? (
+              <div className="pwrow">
+                <input autoFocus value={form.folder} onChange={set('folder')} placeholder="Nama folder baru" maxLength={60} />
+                <button type="button" className="btn icon" title="Pilih folder yang ada" onClick={() => { setTypingFolder(false); setForm({ ...form, folder: '' }); }}><i className="ti ti-list" /></button>
+              </div>
+            ) : (
+              <select value={form.folder} onChange={(e) => {
+                const folder = e.target.value;
+                if (folder === NEW_FOLDER) setTypingFolder(true);
+                setForm({ ...form, folder: folder === NEW_FOLDER ? '' : folder });
+              }}>
+                <option value="">Tanpa folder</option>
+                {folderOptions.map((f) => <option key={f} value={f}>{f}</option>)}
+                <option value={NEW_FOLDER}>+ Folder baru…</option>
+              </select>
+            )}
           </div>
           <label className="check" style={{ marginTop: 22 }}><input type="checkbox" checked={form.favorite} onChange={set('favorite')} />Favorit</label>
         </div>

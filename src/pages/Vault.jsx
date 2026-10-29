@@ -25,7 +25,21 @@ export function Vault() {
   const [settingMfa, setSettingMfa] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const folders = useMemo(() => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort(), [items]);
+  // A folder is a name on its items. New folders live in this session until an item is put in them.
+  const [newFolders, setNewFolders] = useState([]);
+  const [naming, setNaming] = useState(null); // null | name being typed for a new folder
+  const folders = useMemo(() => [...new Set([...items.map((i) => i.folder), ...newFolders].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [items, newFolders]);
+
+  function createFolder(e) {
+    e.preventDefault();
+    if (naming === null) return; // blur from the input being removed after Enter
+    const name = naming.trim();
+    setNaming(null);
+    if (!name) return;
+    setNewFolders((f) => [...f, name]);
+    setView(`folder:${name}`);
+    setSelectedId(null);
+  }
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -64,7 +78,18 @@ export function Vault() {
         {nav('fav', 'star', 'Favorit', items.filter((i) => i.favorite).length)}
         <div className="sep" />
         {folders.map((f) => <span key={f}>{nav(`folder:${f}`, 'folder', f)}</span>)}
-        {folders.length > 0 && <div className="sep" />}
+        {naming === null ? (
+          <button className="nav" onClick={() => setNaming('')}><i className="ti ti-folder-plus" />Folder baru</button>
+        ) : (
+          <form className="new-folder" onSubmit={createFolder}>
+            <i className="ti ti-folder-plus" />
+            <input
+              autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} placeholder="Nama folder" maxLength={60}
+              onKeyDown={(e) => e.key === 'Escape' && setNaming(null)} onBlur={(e) => createFolder(e)}
+            />
+          </form>
+        )}
+        <div className="sep" />
         {nav('gen', 'wand', 'Generator')}
         {nav('health', 'heartbeat', 'Kesehatan')}
         {offline && <div className="note warn" style={{ margin: '8px 0' }}><i className="ti ti-cloud-off" />Offline: hanya bisa dibaca</div>}
@@ -90,7 +115,9 @@ export function Vault() {
                 {i.favorite && <i className="ti ti-star" />}
               </button>
             ))}
-            {items.length > 0 && visible.length === 0 && <p className="sub" style={{ padding: 16 }}>Tidak ada item yang cocok.</p>}
+            {visible.length === 0 && (query.trim() || !view.startsWith('folder:')
+              ? items.length > 0 && <p className="sub" style={{ padding: 16 }}>Tidak ada item yang cocok.</p>
+              : <p className="sub" style={{ padding: 16 }}>Folder ini masih kosong. Tambahkan item dengan tombol +, atau pindahkan item lewat Edit.</p>)}
           </div>
         </div>
       )}

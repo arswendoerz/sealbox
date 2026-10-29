@@ -144,3 +144,5 @@ label.f{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .theme .on{background:var(--card);color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .theme-fixed{position:fixed;top:16px;right:16px;z-index:5}
 .side-theme{margin:10px 4px 0}
+.new-folder{display:flex;align-items:center;gap:10px;padding:4px 10px;color:var(--muted)}
+.new-folder input{margin:0;padding:6px 8px;font-size:13px}
