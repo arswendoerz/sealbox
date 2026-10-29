@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useVault } from '../context/VaultContext.jsx';
 import { Avatar } from './Avatar.jsx';
 import { isFolder } from '../lib/folders.js';
+import { confirmDialog } from '../lib/dialogs.js';
 
 const when = (iso) => new Date(iso).toLocaleString('id', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -19,7 +20,7 @@ export function HistoryDialog({ onClose }) {
 
   async function restore(v) {
     const current = items.find((i) => i.id === v.item_id);
-    if (current && !confirm(`Ganti "${current.name}" dengan versi dari ${when(v.item_updated_at)}?`)) return;
+    if (current && !(await confirmDialog({ title: `Ganti "${current.name}"?`, body: `Isinya diganti dengan versi dari ${when(v.item_updated_at)}. Versi sekarang tetap tersimpan di Riwayat.`, confirmLabel: 'Pulihkan', icon: 'restore' }))) return;
     setBusy(v.version_id);
     setError('');
     try {

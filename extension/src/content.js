@@ -10,6 +10,22 @@
 
   const usable = (el) => el instanceof HTMLInputElement && !el.disabled && !el.readOnly;
 
+  // 2FA code fields: marked one-time-code, or short text/number fields named like a code.
+  const OTP_HINT = /otp|totp|2fa|mfa|one.?time|kode|code|token|verif|authenticat/i;
+  const isOtpField = (el) => el instanceof HTMLInputElement
+    && (/one-time-code/i.test(el.autocomplete)
+      || (['text', 'tel', 'number'].includes(el.type) && !/username|email/i.test(el.autocomplete)
+        && OTP_HINT.test(`${el.name} ${el.id} ${el.placeholder} ${el.getAttribute('aria-label') ?? ''}`)
+        && (el.maxLength === -1 ? /numeric/.test(el.inputMode) : el.maxLength >= 1 && el.maxLength <= 8)));
+
+  // Fills a code into one field, or across single-digit boxes (one input per digit).
+  function fillCode(anchor, code) {
+    if (anchor.maxLength !== 1) return setValue(anchor, code);
+    const boxes = [...(anchor.form ?? document).querySelectorAll('input')].filter((i) => usable(i) && visible(i) && i.maxLength === 1);
+    const start = boxes.indexOf(anchor);
+    [...code].forEach((d, k) => boxes[start + k] && setValue(boxes[start + k], d));
+  }
+
   // A "show password" button turns the field into type=text, so remember fields that were ever
   // password fields (and trust autocomplete hints) instead of only checking the current type.
   const seenPassword = new WeakSet();
@@ -32,6 +48,7 @@
 
   function eligible(el) {
     if (!usable(el)) return false;
+    if (isOtpField(el)) return true;
     if (isPasswordField(el)) return true;
     if (!isUsernameField(el)) return false;
     if (/username|email/i.test(el.autocomplete) || el.type === 'email') return true;
@@ -211,7 +228,48 @@
     return el;
   }
 
+  async function openOtpMenu() {
+    menuOpen = true;
+    mount();
+    menu.replaceChildren(line('head', 'Sealbox · kode 2FA'), line('msg', 'Memuat…'));
+    menu.style.display = 'block';
+    markShown(menu);
+    place();
+    let r;
+    try {
+      r = await ask('totpMatches');
+    } catch (err) {
+      return menu.replaceChildren(line('head', 'Sealbox'), line('msg', err.message));
+    }
+    const parts = [line('head', 'Sealbox · kode 2FA')];
+    if (r.blocked) parts.push(line('msg', 'Isi otomatis tidak tersedia di frame ini.'));
+    else if (r.locked) parts.push(line('msg', 'Vault terkunci. Buka lewat ikon Sealbox di toolbar.'));
+    else if (!r.items.length) parts.push(line('msg', 'Tidak ada login dengan kode 2FA untuk situs ini.'));
+    for (const item of r.items ?? []) {
+      const btn = document.createElement('button');
+      btn.className = 'row';
+      btn.append(line('', `🔐 ${item.name}`), Object.assign(document.createElement('small'), { textContent: item.username || 'Isi kode 2FA' }));
+      btn.addEventListener('click', async (e) => {
+        const problem = clickProblem(e, menu);
+        if (problem) return problem !== 'ignored' && menu.replaceChildren(line('head', 'Sealbox'), line('msg', problem));
+        const target = field;
+        if (!target || !visible(target)) return closeMenu();
+        closeMenu();
+        try {
+          fillCode(target, (await ask('fillTotp', { id: item.id })).code);
+        } catch (err) {
+          menu.replaceChildren(line('head', 'Sealbox'), line('msg', err.message));
+          menu.style.display = 'block';
+        }
+      });
+      parts.push(btn);
+    }
+    menu.replaceChildren(...parts);
+    markShown(menu);
+  }
+
   async function openMenu() {
+    if (isOtpField(field)) return openOtpMenu();
     menuOpen = true;
     mount();
     menu.replaceChildren(line('head', 'Sealbox'), line('msg', 'Memuat…'));

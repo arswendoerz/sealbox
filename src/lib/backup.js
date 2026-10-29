@@ -1,7 +1,8 @@
 import { deriveAccountKeys } from '../crypto/kdf.js';
 import { decryptJSON } from '../crypto/aes.js';
 import { unwrapVaultKey, recoveryWrappingKey } from '../crypto/keys.js';
-import { isFolder, MAX_FOLDER_NAME } from './folders.js';
+import { isFolder, MAX_FOLDER_NAME, folderStyle } from './folders.js';
+import { ALL_TEXT_FIELDS, TYPES } from './itemTypes.js';
 
 const FORMAT = 'sealbox-backup';
 const VERSION = 1;
@@ -39,7 +40,7 @@ export function parseBackup(text) {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TEXT_FIELDS = ['name', 'url', 'username', 'password', 'folder', 'notes', 'rules'];
+const TEXT_FIELDS = ALL_TEXT_FIELDS;
 
 // Keeps only known fields with the right types, so an imported item can't break the vault UI.
 function cleanItem(raw, id, updatedAt) {
@@ -47,10 +48,12 @@ function cleanItem(raw, id, updatedAt) {
   if (isFolder(raw)) {
     const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, MAX_FOLDER_NAME) : '';
     if (!name) throw new Error('bad folder');
-    return { id, kind: 'folder', name, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now() };
+    const { color, icon } = folderStyle(raw);
+    return { id, kind: 'folder', name, ...(color && { color }), ...(icon !== 'folder' && { icon }), updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now() };
   }
   const item = { id, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(), favorite: raw.favorite === true, exactHost: raw.exactHost === true };
   for (const f of TEXT_FIELDS) item[f] = typeof raw[f] === 'string' ? raw[f] : '';
+  if (TYPES[raw.type] && raw.type !== 'login') item.type = raw.type;
   if (!item.name.trim()) item.name = item.url || 'Tanpa nama';
   if (Number.isFinite(raw.passwordChangedAt)) item.passwordChangedAt = raw.passwordChangedAt;
   return item;

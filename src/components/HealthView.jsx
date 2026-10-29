@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Avatar } from './Avatar.jsx';
 import { analyze, checkBreaches, OLD_AFTER_DAYS } from '../lib/health.js';
+import { parseUrl } from '../lib/url.js';
+
+// The site's own "change password" page, by the /.well-known/change-password standard; sites
+// that don't support it usually redirect to their home or settings page.
+const changeUrl = (item) => {
+  const u = parseUrl(item.url);
+  return u && `${u.origin}/.well-known/change-password`;
+};
 
 // Breach results live only in this component's state, so they're gone once the vault locks.
 export function HealthView({ items, offline, onOpen, onBack }) {
@@ -75,11 +83,16 @@ export function HealthView({ items, offline, onOpen, onBack }) {
           <label className="f" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><i className={`ti ti-${g.icon}`} />{g.title} · {g.hint}</label>
           <div className="card" style={{ overflow: 'hidden' }}>
             {g.rows.map((r) => (
-              <button key={r.item.id} className="item" onClick={() => onOpen(r.item.id)}>
-                <Avatar name={r.item.name} />
-                <div style={{ minWidth: 0 }}>{r.item.name}<small>{r.item.username || '—'}</small></div>
-                <span className="pill" style={{ marginLeft: 'auto', flexShrink: 0, ...(g.bad ? { background: 'var(--bad-soft)', color: 'var(--bad)' } : { background: 'var(--warn-soft)', color: 'var(--warn)' }) }}>{g.note(r)}</span>
-              </button>
+              <div key={r.item.id} className="item" role="button" tabIndex={0} onClick={() => onOpen(r.item.id)} onKeyDown={(e) => e.key === 'Enter' && onOpen(r.item.id)}>
+                <Avatar item={r.item} />
+                <div style={{ minWidth: 0 }}>{r.item.name}<small style={{ color: g.bad ? 'var(--bad)' : 'var(--warn)' }}>{g.note(r)}</small></div>
+                {changeUrl(r.item) && (
+                  <a className={`btn${g.bad ? ' pri' : ''} change-now`} href={changeUrl(r.item)} target="_blank" rel="noreferrer noopener" onClick={(e) => e.stopPropagation()}
+                    title="Buka halaman ganti password situs ini. Ekstensi Sealbox menawarkan password baru dan menyimpannya.">
+                    <i className="ti ti-external-link" />Ganti sekarang
+                  </a>
+                )}
+              </div>
             ))}
           </div>
         </section>

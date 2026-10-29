@@ -10,3 +10,14 @@ export function folderNames(items, folders) {
   return [...new Set([...items.map((i) => i.folder), ...folders.map((f) => f.name)].filter(Boolean))]
     .sort((a, b) => a.localeCompare(b));
 }
+
+// Optional look of a folder, stored on its folder row.
+export const FOLDER_COLORS = ['brand', 'bad', 'warn', 'ok', 'info'];
+export const FOLDER_ICONS = ['folder', 'briefcase', 'school', 'shopping-cart', 'heart', 'home', 'device-gamepad-2', 'building-bank', 'plane'];
+
+export function folderStyle(row) {
+  return {
+    color: FOLDER_COLORS.includes(row?.color) ? row.color : null,
+    icon: FOLDER_ICONS.includes(row?.icon) ? row.icon : 'folder',
+  };
+}

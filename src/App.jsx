@@ -8,6 +8,7 @@ import { Recover } from './pages/Recover.jsx';
 import { Vault } from './pages/Vault.jsx';
 import { VerifyMfa } from './pages/VerifyMfa.jsx';
 import { ThemeSwitch } from './components/ThemeSwitch.jsx';
+import { usePrefs } from './lib/prefs.js';
 
 export default function App() {
   const { status } = useVault();
@@ -20,7 +21,8 @@ function Screen() {
   const { status, lock, hasLegacy } = useVault();
   const [page, setPage] = useState(null); // signed-out sub-page: 'login' | 'register' | 'recover'
   const [recovering, setRecovering] = useState(false);
-  useAutoLock(status === 'unlocked', lock, 5);
+  const prefs = usePrefs();
+  useAutoLock(status === 'unlocked', lock, prefs.autoLockMin, prefs.lockOnHidden);
   useEffect(() => { if (status === 'unlocked') setRecovering(false); }, [status]);
 
   if (status === 'recovering') return <Recover />;

@@ -11,6 +11,7 @@ import { siteOf, itemMatches } from './site.js';
 import { decide, newItem } from './saveLogin.js';
 import { parseRules, generateWithRules, rulesForHost, DEFAULT_RULES } from '../../src/lib/passwordRules.js';
 import ruleDb from '../../src/data/apple-password-rules.json'; // static: service workers can't import()
+import { totpCode } from '../../src/lib/totp.js';
 
 const AUTO_LOCK_MINUTES = 5;
 const CLIPBOARD_SECONDS = 30;
@@ -124,6 +125,26 @@ async function matches(_msg, sender) {
   if (!all) return { locked: true };
   touch();
   return { items: all.filter((i) => itemMatches(i.url, page, i.exactHost)).map(({ id, name, username }) => ({ id, name, username })) };
+}
+
+// Logins for this page that have a 2FA secret (names only).
+async function totpMatches(_msg, sender) {
+  const page = pageOf(sender);
+  if (!page) return { blocked: true };
+  const all = await cachedItems();
+  if (!all) return { locked: true };
+  touch();
+  return { items: all.filter((i) => i.totp && itemMatches(i.url, page, i.exactHost)).map(({ id, name, username }) => ({ id, name, username })) };
+}
+
+// The current code of one login's 2FA secret, on a click, for the page it belongs to.
+async function fillTotp({ id }, sender) {
+  const page = pageOf(sender);
+  if (!page) throw new Error('Isi otomatis tidak tersedia di sini.');
+  const item = (await cachedItems())?.find((i) => i.id === id);
+  if (!item?.totp || !itemMatches(item.url, page, item.exactHost)) throw new Error('Item ini bukan untuk situs ini.');
+  touch();
+  return { code: (await totpCode(item.totp)).code };
 }
 
 async function credentialFor(id, page) {
@@ -335,7 +356,7 @@ async function clearClipboard() {
 
 // Extension pages (popup) can do everything; content scripts (sender.tab set) only these.
 const popupHandlers = { state, open, items, lock, signOut, clearClipboardLater, fillActiveTab, pendingForActiveTab, respondForActiveTab };
-const pageHandlers = { matches, fill, openPopup, captured, rememberUsername, pendingOffer, respond, generate };
+const pageHandlers = { matches, fill, totpMatches, fillTotp, openPopup, captured, rememberUsername, pendingOffer, respond, generate };
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;

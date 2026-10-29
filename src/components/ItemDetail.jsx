@@ -5,10 +5,16 @@ import { estimateBits, strength } from '../crypto/generator.js';
 import { pwnedCount, OLD_AFTER_DAYS } from '../lib/health.js';
 import { parseRules, describeRules, knownRulesFor } from '../lib/passwordRules.js';
 import { parseUrl } from '../lib/url.js';
+import { TYPES, typeOf, cardBrand, last4 } from '../lib/itemTypes.js';
+import { useTotp } from '../hooks/useTotp.js';
+import { formatCode } from '../lib/totp.js';
+import { TotpRing } from './TotpRing.jsx';
 
 const DAY = 24 * 60 * 60 * 1000;
 const shortDate = (t) => new Date(t).toLocaleDateString('id', { day: 'numeric', month: 'short', year: 'numeric' });
-const FIELDS = [['password', 'Password'], ['username', 'Username'], ['url', 'URL'], ['name', 'Nama'], ['notes', 'Catatan'], ['rules', 'Aturan password']];
+const FIELDS = [['password', 'Password'], ['username', 'Username'], ['url', 'URL'], ['name', 'Nama'], ['notes', 'Catatan'], ['rules', 'Aturan password'],
+  ['totp', 'Kode 2FA'], ['cardNumber', 'Nomor kartu'], ['cardExpiry', 'Masa berlaku'], ['cardCvv', 'CVV'], ['cardholder', 'Nama di kartu'],
+  ['fullName', 'Nama lengkap'], ['email', 'Email'], ['phone', 'Telepon'], ['address', 'Alamat'], ['idNumber', 'Nomor identitas'], ['folder', 'Folder']];
 
 // "Password diubah", "Username, URL diubah", ... by comparing a version with the state after it.
 function changeLabel(before, after) {
@@ -113,60 +119,106 @@ function HistoryPanel({ item, offline }) {
   );
 }
 
-export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, onBack, copy }) {
+// One copyable field. secret: masked until revealed.
+function Field({ label, value, copy, secret, wide, mono, children }) {
   const [show, setShow] = useState(false);
-  const url = parseUrl(item.url);
+  if (!value) return null;
+  return (
+    <div className={wide ? 'wide' : undefined}>
+      <label className="f">{label}</label>
+      <div className="val">
+        <span className={mono || secret ? 'mono' : undefined}>{secret && !show ? '•'.repeat(Math.min(value.length, 16)) : value}</span>
+        {children}
+        {secret && <button onClick={() => setShow(!show)} title="Lihat"><i className={`ti ti-eye${show ? '-off' : ''}`} /></button>}
+        {copy && <button onClick={() => copy(value, label)} title="Salin"><i className="ti ti-copy" /></button>}
+      </div>
+    </div>
+  );
+}
+
+function TotpField({ item, copyField }) {
+  const t = useTotp(item.totp);
+  if (!t) return null;
+  return (
+    <div className="wide">
+      <label className="f">Kode 2FA (TOTP)</label>
+      {t.error ? <div className="val"><span className="err" style={{ margin: 0 }}>{t.error}</span></div> : (
+        <div className="val totp">
+          <TotpRing remaining={t.remaining} period={t.period} />
+          <span className="code">{formatCode(t.code)}</span>
+          <small>berganti dalam {t.remaining} dtk</small>
+          <button onClick={() => copyField(item, 'totp')} title="Salin"><i className="ti ti-copy" /></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardFace({ item }) {
+  const brand = cardBrand(item.cardNumber);
+  return (
+    <div className="cardface">
+      <div className="cf-top"><b>{item.name}</b>{brand && <i className={`ti ti-brand-${brand}`} />}</div>
+      <div className="mono cf-num">•••• •••• •••• {last4(item.cardNumber) || '••••'}</div>
+      <div className="cf-bottom"><span>{(item.cardholder || '').toUpperCase()}</span><span>{item.cardExpiry}</span></div>
+    </div>
+  );
+}
+
+export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, onBack, copy, copyField }) {
+  const kind = typeOf(item);
+  const url = kind === 'login' ? parseUrl(item.url) : null;
 
   return (
     <div className="detail">
       <button className="btn back" onClick={onBack} style={{ marginBottom: 16 }}><i className="ti ti-arrow-left" /> Kembali</button>
       <div className="dh">
-        <Avatar name={item.name} />
+        <Avatar item={item} />
         <div style={{ minWidth: 0 }}>
           <h3>{item.name}</h3>
-          {url && <a className="link" href={url.href} target="_blank" rel="noreferrer noopener">{url.hostname}</a>}
+          {url ? <a className="link" href={url.href} target="_blank" rel="noreferrer noopener">{url.hostname}</a> : <span className="sub" style={{ margin: 0 }}>{TYPES[kind].label}</span>}
         </div>
         <div className="act">
-          <button className="btn" onClick={onEdit}><i className="ti ti-edit" /> Edit</button>
-          <button className="btn icon danger" onClick={onDelete} aria-label="Hapus"><i className="ti ti-trash" /></button>
+          <button className="btn" onClick={onEdit} title="Edit (E)"><i className="ti ti-edit" /> Edit</button>
+          <button className="btn icon danger" onClick={onDelete} aria-label="Hapus" title="Hapus (Del)"><i className="ti ti-trash" /></button>
         </div>
       </div>
 
+      {kind === 'login' && (item.username || item.password) && (
+        <div className="mobile-actions">
+          {item.username && <button className="btn" onClick={() => copyField(item, 'username')}><i className="ti ti-user" />Salin username</button>}
+          {item.password && <button className="btn pri" onClick={() => copyField(item, 'password')}><i className="ti ti-key" />Salin password</button>}
+        </div>
+      )}
+
       <div className="dgrid">
         <div className="card dmain">
+          {kind === 'card' && <CardFace item={item} />}
           <div className="fields">
-            {item.username && (
-              <div>
-                <label className="f">Username</label>
-                <div className="val"><span>{item.username}</span><button onClick={() => copy(item.username, 'Username')} title="Salin"><i className="ti ti-copy" /></button></div>
-              </div>
-            )}
-            {item.password && (
-              <div>
-                <label className="f">Password</label>
-                <div className="val">
-                  <span className="mono">{show ? item.password : '•'.repeat(Math.min(item.password.length, 16))}</span>
-                  <button onClick={() => setShow(!show)} title="Lihat"><i className={`ti ti-eye${show ? '-off' : ''}`} /></button>
-                  <button onClick={() => copy(item.password, 'Password')} title="Salin"><i className="ti ti-copy" /></button>
-                </div>
-              </div>
-            )}
-            {url && (
-              <div className="wide">
-                <label className="f">URL</label>
-                <div className="val">
-                  <span>{item.url}</span>
+            {kind === 'login' && (<>
+              <Field label="Username" value={item.username} copy={copy} />
+              <Field label="Password" value={item.password} copy={copy} secret />
+              <TotpField item={item} copyField={copyField} />
+              {url && (
+                <Field label="URL" value={item.url} copy={() => copy(url.href, 'URL')} wide>
                   <a href={url.href} target="_blank" rel="noreferrer noopener" title="Buka" style={{ color: 'var(--muted)', fontSize: 16 }}><i className="ti ti-external-link" /></a>
-                  <button onClick={() => copy(url.href, 'URL')} title="Salin"><i className="ti ti-copy" /></button>
-                </div>
-              </div>
-            )}
-            {item.notes && (
-              <div className="wide">
-                <label className="f">Catatan</label>
-                <div className="val"><span>{item.notes}</span></div>
-              </div>
-            )}
+                </Field>
+              )}
+            </>)}
+            {kind === 'card' && (<>
+              <Field label="Nama di kartu" value={item.cardholder} copy={copy} />
+              <Field label="Nomor kartu" value={item.cardNumber} copy={copy} secret />
+              <Field label="Berlaku sampai" value={item.cardExpiry} copy={copy} mono />
+              <Field label="CVV" value={item.cardCvv} copy={copy} secret />
+            </>)}
+            {kind === 'identity' && (<>
+              <Field label="Nama lengkap" value={item.fullName} copy={copy} />
+              <Field label="Email" value={item.email} copy={copy} />
+              <Field label="Telepon" value={item.phone} copy={copy} />
+              <Field label="Nomor identitas" value={item.idNumber} copy={copy} secret />
+              <Field label="Alamat" value={item.address} copy={copy} wide />
+            </>)}
+            <Field label="Catatan" value={item.notes} copy={kind === 'note' ? copy : undefined} wide />
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -177,8 +229,8 @@ export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, on
         </div>
 
         <div>
-          {item.password && <SecurityPanel key={item.password} item={item} reusedWith={reusedWith} offline={offline} />}
-          <SitePanel item={item} url={url} />
+          {kind === 'login' && item.password && <SecurityPanel key={item.password} item={item} reusedWith={reusedWith} offline={offline} />}
+          {kind === 'login' && <SitePanel item={item} url={url} />}
           <HistoryPanel item={item} offline={offline} />
         </div>
       </div>

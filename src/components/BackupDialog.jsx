@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useVault } from '../context/VaultContext.jsx';
 import { parseBackup } from '../lib/backup.js';
+import { setPrefs } from '../lib/prefs.js';
 
 function summary({ added, updated, skipped, olderKey }) {
   const parts = [added && `${added} item baru`, updated && `${updated} diperbarui`, skipped && `${skipped} sudah ada`].filter(Boolean);
@@ -36,6 +37,7 @@ export function BackupDialog({ onClose }) {
     const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
     Object.assign(document.createElement('a'), { href: url, download: `sealbox-backup-${backup.exportedAt.slice(0, 10)}.json` }).click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setPrefs({ lastBackupAt: Date.now() });
     setResult(`${backup.items.length} item diekspor.`);
   });
 

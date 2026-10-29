@@ -47,6 +47,7 @@ export function VaultProvider({ children }) {
   const [status, setStatus] = useState('loading');
   const [user, setUser] = useState(null); // { id, email }
   const [items, setItems] = useState([]);
+  const [lockedAt, setLockedAt] = useState(null); // when the vault was last locked in this tab
   const [folders, setFolders] = useState([]); // folder rows: [{ id, name, updatedAt }]
   const [offline, setOffline] = useState(false);
   const [hasLegacy, setHasLegacy] = useState(null); // email of a Phase 1 local vault, if any
@@ -215,6 +216,7 @@ export function VaultProvider({ children }) {
     clearClipboard();
     setItems([]);
     setFolders([]);
+    setLockedAt(Date.now());
     setStatus((s) => (s === 'unlocked' ? 'locked' : s));
   }, []);
 
@@ -316,6 +318,34 @@ export function VaultProvider({ children }) {
     return name;
   }, [folders, offline, toRow, failWrite, updateCache]);
 
+  // Renames a folder (its items move along) and/or sets its colour and icon. The look lives on
+  // the folder's own row, which is created if the folder only existed through its items.
+  const updateFolder = useCallback(async (name, { newName, color, icon }) => {
+    if (offline) throw new Error('Mengubah folder butuh koneksi internet.');
+    const target = (newName ?? name).trim().slice(0, MAX_FOLDER_NAME);
+    if (!target) throw new Error('Nama folder tidak boleh kosong.');
+    if (target !== name && (folders.some((f) => f.name === target) || items.some((i) => i.folder === target))) {
+      throw new Error(`Folder "${target}" sudah ada.`);
+    }
+    const own = folders.find((f) => f.name === name);
+    const look = { color: color !== undefined ? color : own?.color, icon: icon !== undefined ? icon : own?.icon };
+    const folderPlain = { kind: 'folder', name: target, ...(look.color && { color: look.color }), ...(look.icon && look.icon !== 'folder' && { icon: look.icon }) };
+    const moved = target === name ? [] : items.filter((i) => i.folder === name);
+    const rows = await Promise.all([
+      toRow(own?.id ?? crypto.randomUUID(), folderPlain),
+      ...moved.map(({ id, updatedAt: _, ...plain }) => toRow(id, { ...plain, folder: target })),
+    ]);
+    const { error } = await supabase.from('vault_items').upsert(rows);
+    if (error) throw failWrite(error, 'mengubah folder');
+    const ids = new Set(rows.map((r) => r.id));
+    await updateCache((rs) => [...rs.filter((r) => !ids.has(r.id)), ...rows]);
+    const [folderRow, ...itemRows] = rows;
+    const at = new Map(itemRows.map((r) => [r.id, Date.parse(r.updated_at)]));
+    setItems((prev) => prev.map((i) => (at.has(i.id) ? { ...i, folder: target, updatedAt: at.get(i.id) } : i)));
+    setFolders((prev) => [...prev.filter((f) => f.id !== folderRow.id), { id: folderRow.id, name: target, color: look.color, icon: look.icon, updatedAt: Date.parse(folderRow.updated_at) }]);
+    return target;
+  }, [items, folders, offline, toRow, failWrite, updateCache]);
+
   // Removes the folder's own row(s); its items, if any, keep their folder name.
   const deleteFolder = useCallback(async (name) => {
     const ids = folders.filter((f) => f.name === name).map((f) => f.id);
@@ -370,7 +400,7 @@ export function VaultProvider({ children }) {
       const ids = new Set(rows.map((r) => r.id));
       await updateCache((rs) => [...rs.filter((r) => !ids.has(r.id)), ...rows]);
       setItems((prev) => [...prev.filter((i) => !ids.has(i.id)), ...changed.filter((i) => !isFolder(i))].sort(byName));
-      setFolders((prev) => [...prev.filter((f) => !ids.has(f.id)), ...changed.filter(isFolder).map(({ id, name, updatedAt }) => ({ id, name, updatedAt }))]);
+      setFolders((prev) => [...prev.filter((f) => !ids.has(f.id)), ...changed.filter(isFolder).map(({ id, name, color, icon, updatedAt }) => ({ id, name, color, icon, updatedAt }))]);
     }
     return counts;
   }, [items, folders, offline, toRow, failWrite, updateCache]);
@@ -402,9 +432,9 @@ export function VaultProvider({ children }) {
   }, []);
 
   const value = {
-    status, user, items, folders, offline, hasLegacy,
+    status, user, items, folders, offline, hasLegacy, lockedAt,
     register, login, unlock, completeMfa, lock, signOut, requestRecovery, completeRecovery, saveItem, deleteItem, discardLegacy,
-    createFolder, deleteFolder,
+    createFolder, updateFolder, deleteFolder,
     exportBackup, importBackup, loadHistory, restoreVersion,
   };
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar } from '../../../src/components/Avatar.jsx';
 import { siteOf, itemMatches } from '../site.js';
+import { typeOf } from '../../../src/lib/itemTypes.js';
+import { totpCode } from '../../../src/lib/totp.js';
 
 const WEB_APP = 'https://sealbox-bet.pages.dev';
 const CLIPBOARD_SECONDS = 30;
@@ -124,7 +126,7 @@ function VaultList({ onLocked }) {
 
   const { here, rest } = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const shown = (items ?? []).filter((i) => !q || [i.name, i.username, i.url].some((v) => v?.toLowerCase().includes(q)));
+    const shown = (items ?? []).filter((i) => typeOf(i) === 'login').filter((i) => !q || [i.name, i.username, i.url].some((v) => v?.toLowerCase().includes(q)));
     const isHere = (i) => itemMatches(i.url, page, i.exactHost);
     return { here: shown.filter(isHere), rest: shown.filter((i) => !isHere(i)) };
   }, [items, page, query]);
@@ -159,6 +161,7 @@ function VaultList({ onLocked }) {
         {canFill && <button title="Isi di halaman ini" onClick={() => fill(i)}><i className="ti ti-login-2" /></button>}
         {i.username && <button title="Salin username" onClick={() => copy(i.username, 'Username')}><i className="ti ti-user" /></button>}
         {i.password && <button title="Salin password" onClick={() => copy(i.password, 'Password')}><i className="ti ti-key" /></button>}
+        {i.totp && <button title="Salin kode 2FA" onClick={() => totpCode(i.totp).then((t) => copy(t.code, 'Kode 2FA'), (err) => setError(err.message))}><i className="ti ti-clock-shield" /></button>}
       </div>
     </div>
   );

@@ -100,6 +100,7 @@ mockup/          # mockup HTML semua layar
 3. ✅ Export/backup, ✅ daftar kata diceware lengkap (EFF, 7.776 kata), ✅ PWA, ✅ 2FA
 4. ✅ Kesehatan password dan generator pintar
 5. Ekstensi browser: ✅ M1 popup (masuk, 2FA, cari dan salin), ✅ M2 autofill, ✅ M3 simpan login, ✅ M4 generator di halaman
+6. ✅ UI v2 ([mockup](mockup/v2.html)): navigasi ponsel, Pengaturan (auto-lock, clipboard, tampilan), checklist keamanan, salin cepat, shortcut dan palet perintah (<kbd>Ctrl</kbd> <kbd>K</kbd>, <kbd>?</kbd>), konfirmasi dan Urungkan, folder (jumlah, ganti nama, warna, seret item), urut dan saring, "Ganti sekarang" di Kesehatan, jenis item (Login, Kartu, Catatan, Identitas), kode 2FA (TOTP) di item dan diisi ekstensi, ikon situs opsional
 
 ## Kredit
 

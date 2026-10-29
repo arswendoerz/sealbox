@@ -56,7 +56,7 @@ export async function decryptVault(records, key) {
   const all = await Promise.all(records.map(async (r) => ({ ...(await decryptJSON(r, key)), id: r.id, updatedAt: Date.parse(r.updated_at) })));
   return {
     items: all.filter((i) => !isFolder(i)).sort(byName),
-    folders: all.filter(isFolder).map(({ id, name, updatedAt }) => ({ id, name, updatedAt })),
+    folders: all.filter(isFolder).map(({ id, name, color, icon, updatedAt }) => ({ id, name, color, icon, updatedAt })),
   };
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 
 // Clearing lives outside React, so locking the vault (which unmounts the page) doesn't cancel it.
 // Browsers refuse clipboard writes from a tab without focus, so a failed clear is retried as
@@ -20,22 +20,13 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && ours) clearClipboard();
 });
 
-// Copies text and clears the clipboard after `seconds`.
-export function useClipboard(seconds = 30) {
-  const [message, setMessage] = useState('');
-  const toast = useRef(null);
-
-  useEffect(() => () => clearTimeout(toast.current), []);
-
-  const copy = useCallback(async (text, label = 'Teks') => {
+// Copies text and clears the clipboard after `seconds`; onCopied(label, until) drives the toast.
+export function useClipboard(seconds = 30, onCopied) {
+  return useCallback(async (text, label = 'Teks') => {
     await navigator.clipboard.writeText(text);
     ours = true;
     clearTimeout(clearTimer);
     clearTimer = setTimeout(clearClipboard, seconds * 1000);
-    setMessage(`${label} disalin, clipboard dihapus dalam ${seconds} detik`);
-    clearTimeout(toast.current);
-    toast.current = setTimeout(() => setMessage(''), 3000);
-  }, [seconds]);
-
-  return { copy, message };
+    onCopied?.(label, Date.now() + seconds * 1000, seconds * 1000);
+  }, [seconds, onCopied]);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useVault } from '../context/VaultContext.jsx';
+import { confirmDialog } from '../lib/dialogs.js';
 import { mfaStatus, startEnroll, confirmEnroll, regenerateRecoveryCodes, disableMfa, formatRecoveryCode } from '../lib/mfa.js';
 
 // step: 'loading' | 'off' | 'enroll' | 'codes' | 'on'
@@ -51,8 +52,8 @@ export function TwoFactorDialog({ copy, onClose }) {
     });
   };
 
-  const regenerate = () => {
-    if (!window.confirm('Recovery code lama akan langsung tidak berlaku. Lanjutkan?')) return;
+  const regenerate = async () => {
+    if (!(await confirmDialog({ title: 'Buat recovery code baru?', body: 'Recovery code lama akan langsung tidak berlaku.', confirmLabel: 'Buat baru', icon: 'refresh' }))) return;
     run(async () => {
       setCodes(await regenerateRecoveryCodes());
       setStep('codes');

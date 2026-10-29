@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useVault } from '../context/VaultContext.jsx';
+import { PasswordInput } from '../components/PasswordInput.jsx';
 
 export function Login({ onRegister, onRecover }) {
   const { login, hasLegacy } = useVault();
@@ -36,7 +37,7 @@ export function Login({ onRegister, onRecover }) {
           <label className="f">Email</label>
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="username" />
           <label className="f">Master password</label>
-          <input type="password" required value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" />
+          <PasswordInput required value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" />
           {error && <p className="err">{error}{hasLegacy && ' Belum daftar akun online? Klik Daftar di bawah.'}</p>}
           <button className="btn pri full" disabled={busy}>{busy ? 'Membuka vault…' : 'Masuk'}</button>
         </form>
