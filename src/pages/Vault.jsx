@@ -9,6 +9,7 @@ import { BackupDialog } from '../components/BackupDialog.jsx';
 import { TwoFactorDialog } from '../components/TwoFactorDialog.jsx';
 import { HealthView } from '../components/HealthView.jsx';
 import { HistoryDialog } from '../components/HistoryDialog.jsx';
+import { ThemeSwitch } from '../components/ThemeSwitch.jsx';
 import { parseUrl } from '../lib/url.js';
 import { analyze } from '../lib/health.js';
 
@@ -72,6 +73,7 @@ export function Vault() {
         <button className="nav" onClick={() => setSettingMfa(true)}><i className="ti ti-shield-lock" />2FA</button>
         <button className="nav" onClick={lock}><i className="ti ti-lock" />Kunci vault</button>
         <button className="nav" onClick={signOut}><i className="ti ti-logout" />Keluar</button>
+        <ThemeSwitch className="side-theme" />
       </aside>
 
       {!fullPage && (

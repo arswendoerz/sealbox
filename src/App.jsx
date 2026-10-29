@@ -7,15 +7,22 @@ import { Unlock } from './pages/Unlock.jsx';
 import { Recover } from './pages/Recover.jsx';
 import { Vault } from './pages/Vault.jsx';
 import { VerifyMfa } from './pages/VerifyMfa.jsx';
+import { ThemeSwitch } from './components/ThemeSwitch.jsx';
 
 export default function App() {
+  const { status } = useVault();
+  if (status === 'loading') return null;
+  // The vault has the switch in its sidebar; Screen stays in place so its state survives.
+  return <><Screen />{status !== 'unlocked' && <ThemeSwitch className="theme-fixed" />}</>;
+}
+
+function Screen() {
   const { status, lock, hasLegacy } = useVault();
   const [page, setPage] = useState(null); // signed-out sub-page: 'login' | 'register' | 'recover'
   const [recovering, setRecovering] = useState(false);
   useAutoLock(status === 'unlocked', lock, 5);
   useEffect(() => { if (status === 'unlocked') setRecovering(false); }, [status]);
 
-  if (status === 'loading') return null;
   if (status === 'recovering') return <Recover />;
   if (status === 'mfa') return <VerifyMfa />;
   if (status === 'signedOut') {
