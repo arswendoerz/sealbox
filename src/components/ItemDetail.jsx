@@ -165,7 +165,8 @@ function CardFace({ item }) {
   );
 }
 
-export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, onBack, copy, copyField }) {
+// editor: the edit form, shown in place of the fields while the item is being edited.
+export function ItemDetail({ item, reusedWith = 0, offline, editor, onEdit, onDelete, onBack, copy, copyField }) {
   const kind = typeOf(item);
   const url = kind === 'login' ? parseUrl(item.url) : null;
 
@@ -178,13 +179,13 @@ export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, on
           <h3>{item.name}</h3>
           {url ? <a className="link" href={url.href} target="_blank" rel="noreferrer noopener">{url.hostname}</a> : <span className="sub" style={{ margin: 0 }}>{TYPES[kind].label}</span>}
         </div>
-        <div className="act">
+        {!editor && <div className="act">
           <button className="btn" onClick={onEdit} title="Edit (E)"><i className="ti ti-edit" /> Edit</button>
           <button className="btn icon danger" onClick={onDelete} aria-label="Hapus" title="Hapus (Del)"><i className="ti ti-trash" /></button>
-        </div>
+        </div>}
       </div>
 
-      {kind === 'login' && (item.username || item.password) && (
+      {!editor && kind === 'login' && (item.username || item.password) && (
         <div className="mobile-actions">
           {item.username && <button className="btn" onClick={() => copyField(item, 'username')}><i className="ti ti-user" />Salin username</button>}
           {item.password && <button className="btn pri" onClick={() => copyField(item, 'password')}><i className="ti ti-key" />Salin password</button>}
@@ -192,7 +193,7 @@ export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, on
       )}
 
       <div className="dgrid">
-        <div className="card dmain">
+        {editor || <div className="card dmain">
           {kind === 'card' && <CardFace item={item} />}
           <div className="fields">
             {kind === 'login' && (<>
@@ -226,7 +227,7 @@ export function ItemDetail({ item, reusedWith = 0, offline, onEdit, onDelete, on
             {item.favorite && <span className="pill" style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}><i className="ti ti-star" />Favorit</span>}
             <span className="pill" style={{ background: 'var(--soft)', color: 'var(--muted)' }}><i className="ti ti-clock" />Diubah {shortDate(item.updatedAt)}</span>
           </div>
-        </div>
+        </div>}
 
         <div>
           {kind === 'login' && item.password && <SecurityPanel key={item.password} item={item} reusedWith={reusedWith} offline={offline} />}

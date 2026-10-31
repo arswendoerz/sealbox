@@ -28,7 +28,8 @@ function TotpPreview({ value }) {
   return <p className="hint" style={{ marginTop: -6 }}>Kode sekarang: <b className="mono">{formatCode(t.code)}</b> · disimpan terenkripsi seperti password.</p>;
 }
 
-export function ItemForm({ item, folders, onSave, onClose }) {
+// inline: drawn in place of the item's details (editing) instead of as a dialog (adding).
+export function ItemForm({ item, folders, onSave, onClose, inline = false }) {
   const [kind, setKind] = useState(typeOf(item));
   const [form, setForm] = useState({ ...EMPTY, ...item });
   const [showGen, setShowGen] = useState(false);
@@ -72,9 +73,8 @@ export function ItemForm({ item, folders, onSave, onClose }) {
     }
   }
 
-  return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form className="card modal" onSubmit={submit}>
+  const body = (
+      <form className={`card ${inline ? 'dmain iform' : 'modal'}`} onSubmit={submit} onKeyDown={inline ? (e) => e.key === 'Escape' && onClose() : undefined}>
         <h3>{item?.id ? `Edit ${TYPES[kind].label.toLowerCase()}` : 'Tambah item'}<button type="button" className="btn icon" onClick={onClose} aria-label="Tutup"><i className="ti ti-x" /></button></h3>
         {!item?.id && (
           <div className="tabs" role="tablist">
@@ -188,6 +188,7 @@ export function ItemForm({ item, folders, onSave, onClose }) {
           <button className="btn pri" disabled={busy}>Simpan</button>
         </div>
       </form>
-    </div>
   );
+  if (inline) return body;
+  return <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>{body}</div>;
 }

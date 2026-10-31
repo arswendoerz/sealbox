@@ -171,6 +171,9 @@ export function Vault() {
     } catch (err) { fail(err); }
   }, [copy]);
 
+  // Editing happens inside the open item's page; opening another item leaves it.
+  useEffect(() => { if (editing?.id && editing.id !== selectedId) setEditing(null); }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const newItem = () => setEditing({ folder: openFolder ?? '', favorite: view === 'fav', type: kind in TYPES ? kind : undefined });
 
   // ---- keyboard ----
@@ -357,7 +360,8 @@ export function Vault() {
           </div>
         ) : selected ? (
           <ItemDetail key={selected.id} item={selected} reusedWith={reused.get(selected.id) ?? 0} offline={offline} copy={copy} copyField={copyField}
-            onBack={() => setSelectedId(null)} onEdit={() => setEditing(selected)} onDelete={() => remove(selected)} />
+            onBack={() => setSelectedId(null)} onEdit={() => setEditing(selected)} onDelete={() => remove(selected)}
+            editor={editing?.id === selected.id && <ItemForm inline item={editing} folders={folders} onClose={() => setEditing(null)} onSave={save} />} />
         ) : items.length === 0 ? (
           <div className="empty">
             <span className="big"><i className="ti ti-box" /></span>
@@ -439,7 +443,7 @@ export function Vault() {
         </div>
       )}
 
-      {editing && <ItemForm item={editing} folders={folders} onClose={() => setEditing(null)} onSave={save} />}
+      {editing && !editing.id && <ItemForm item={editing} folders={folders} onClose={() => setEditing(null)} onSave={save} />}
       {dialog === 'backup' && <BackupDialog onClose={() => setDialog(null)} />}
       {dialog === 'history' && <HistoryDialog onClose={() => setDialog(null)} />}
       {dialog === 'mfa' && <TwoFactorDialog copy={copy} onClose={() => { setDialog(null); setMfaCheck((n) => n + 1); }} />}
